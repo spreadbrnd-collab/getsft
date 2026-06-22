@@ -171,9 +171,135 @@ export default function RealtorDashboard({
   const [settingsExp, setSettingsExp] = useState(profile.experience.toString());
   const [settingsSaveSuccess, setSettingsSaveSuccess] = useState(false);
 
+  const [editingPropertyId, setEditingPropertyId] = useState<number | null>(null);
+
+  const resetFormFields = () => {
+    setEditingPropertyId(null);
+    setNewTitle('');
+    setNewDesc('');
+    setNewPrice('');
+    setNewBeds('3');
+    setNewBaths('2.5');
+    setNewArea('3200');
+    setNewType('Villa');
+    setNewAddress('');
+    setNewCity(profile.city);
+    setNewProvince('British Columbia');
+    setNewPostal('');
+    setNewOpenHouse('');
+    setNewAmenities('Infinity Pool, Modern Kitchen, Oak Floors');
+    setNewImgUrl('https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80');
+    setShowOnProfile(true);
+    setListOnMarketplace(true);
+    setNewIntent('Buy');
+    setNewReraId('');
+    setNewPossessionDate('');
+    setNewProjectSize('');
+    setNewProjectAreaCount('');
+    setNewBhkConfig('');
+    setNewAvgPricePerSft('');
+    setNewBuilderName('');
+    setNewBuilderDescription('');
+    setNewHighlightStr('');
+    setLandmarkSchool('');
+    setLandmarkMetro('');
+    setLandmarkHospital('');
+    setLandmarkMall('');
+    setLandmarkRestaurant('');
+  };
+
+  const handleStartEditListing = (p: Property) => {
+    setEditingPropertyId(p.property_id);
+    setNewTitle(p.title);
+    setNewDesc(p.description);
+    setNewPrice(p.price.toString());
+    setNewBeds(p.bedrooms.toString());
+    setNewBaths(p.bathrooms.toString());
+    setNewArea(p.area.toString());
+    setNewType(p.propertyType);
+    setNewAddress(p.address);
+    setNewCity(p.city);
+    setNewProvince(p.province || 'British Columbia');
+    setNewPostal(p.postalCode || '');
+    setNewOpenHouse(p.openHouseDate || '');
+    setNewAmenities(p.amenities.join(', '));
+    setNewImgUrl(p.images[0] || '');
+    setShowOnProfile(p.show_on_profile);
+    setListOnMarketplace(p.show_on_marketplace);
+    setNewIntent(p.listingIntent || 'Buy');
+    setNewReraId(p.reraId || '');
+    setNewPossessionDate(p.possessionDate || '');
+    setNewProjectSize(p.projectSize || '');
+    setNewProjectAreaCount(p.projectAreaCount || '');
+    setNewBhkConfig(p.bhkConfig || '');
+    setNewAvgPricePerSft(p.avgPricePerSft || '');
+    setNewBuilderName(p.builderName || '');
+    setNewBuilderDescription(p.builderDescription || '');
+    setNewHighlightStr(p.highlights ? p.highlights.join(', ') : '');
+    setLandmarkSchool(p.landmarks?.school || '');
+    setLandmarkMetro(p.landmarks?.metro || '');
+    setLandmarkHospital(p.landmarks?.hospital || '');
+    setLandmarkMall(p.landmarks?.mall || '');
+    setLandmarkRestaurant(p.landmarks?.restaurant || '');
+
+    setIsCreatingListing(true);
+  };
+
   const handleCreateListingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle || !newPrice || !newAddress) return;
+
+    if (editingPropertyId !== null) {
+      const updatedProperties = properties.map((p) => {
+        if (p.property_id === editingPropertyId) {
+          const editedProperty: Property = {
+            ...p,
+            title: newTitle,
+            description: newDesc,
+            price: parseFloat(newPrice),
+            bedrooms: parseInt(newBeds),
+            bathrooms: parseFloat(newBaths),
+            area: parseInt(newArea),
+            propertyType: newType,
+            amenities: newAmenities.split(',').map(s => s.trim()).filter(Boolean),
+            address: newAddress,
+            city: newCity,
+            province: newProvince,
+            postalCode: newPostal,
+            images: [newImgUrl || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80'],
+            openHouseDate: newOpenHouse || undefined,
+            show_on_profile: showOnProfile,
+            show_on_marketplace: listOnMarketplace,
+            listingIntent: newIntent,
+            monthlyRentEstimate: newIntent === 'Rent' ? parseFloat(newPrice) : Math.round(parseFloat(newPrice) * 0.0035),
+            reraId: newReraId || undefined,
+            possessionDate: newPossessionDate || undefined,
+            projectSize: newProjectSize || undefined,
+            projectAreaCount: newProjectAreaCount || undefined,
+            bhkConfig: newBhkConfig || undefined,
+            avgPricePerSft: newAvgPricePerSft || undefined,
+            builderName: newBuilderName || undefined,
+            builderDescription: newBuilderDescription || undefined,
+            highlights: newHighlightStr ? newHighlightStr.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+            landmarks: (landmarkSchool || landmarkMetro || landmarkHospital || landmarkMall || landmarkRestaurant) ? {
+              school: landmarkSchool || undefined,
+              metro: landmarkMetro || undefined,
+              hospital: landmarkHospital || undefined,
+              mall: landmarkMall || undefined,
+              restaurant: landmarkRestaurant || undefined
+            } : undefined
+          };
+          return editedProperty;
+        }
+        return p;
+      });
+
+      onUpdateProperties(updatedProperties);
+      showToast(`🎉 "${newTitle}" listing updated successfully!`);
+      setIsCreatingListing(false);
+      resetFormFields();
+      return;
+    }
 
     const addedProperty: Property = {
       property_id: Math.floor(1000 + Math.random() * 9000),
@@ -195,8 +321,6 @@ export default function RealtorDashboard({
       status: 'Active',
       show_on_profile: showOnProfile,
       show_on_marketplace: listOnMarketplace,
-      
-      // Expanded fields
       listingIntent: newIntent,
       monthlyRentEstimate: newIntent === 'Rent' ? parseFloat(newPrice) : Math.round(parseFloat(newPrice) * 0.0035),
       reraId: newReraId || undefined,
@@ -219,29 +343,9 @@ export default function RealtorDashboard({
 
     const updated = [addedProperty, ...properties];
     onUpdateProperties(updated);
+    showToast(`🎉 "${newTitle}" listing published successfully!`);
     setIsCreatingListing(false);
-
-    // Reset fields
-    setNewTitle('');
-    setNewDesc('');
-    setNewPrice('');
-    setNewAddress('');
-    setNewPostal('');
-    setNewOpenHouse('');
-    setNewReraId('');
-    setNewPossessionDate('');
-    setNewProjectSize('');
-    setNewProjectAreaCount('');
-    setNewBhkConfig('');
-    setNewAvgPricePerSft('');
-    setNewBuilderName('');
-    setNewBuilderDescription('');
-    setNewHighlightStr('');
-    setLandmarkSchool('');
-    setLandmarkMetro('');
-    setLandmarkHospital('');
-    setLandmarkMall('');
-    setLandmarkRestaurant('');
+    resetFormFields();
   };
 
   const handleDeleteListing = (propertyId: number) => {
@@ -653,7 +757,7 @@ export default function RealtorDashboard({
                               <th className="py-4 px-6 font-medium">Site Visibility</th>
                               <th className="py-4 px-6 font-medium text-center">GetSFT Platform Status</th>
                               <th className="py-4 px-6 font-medium text-right">Selling Price</th>
-                              <th className="py-4 px-6 font-medium text-center">Delete</th>
+                              <th className="py-4 px-6 font-medium text-center">Actions</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-neutral-100">
@@ -740,13 +844,24 @@ export default function RealtorDashboard({
                                   ${p.price.toLocaleString()}
                                 </td>
                                 <td className="py-4 px-6 text-center">
-                                  <button
-                                    onClick={() => handleDeleteListing(p.property_id)}
-                                    className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                                    id={`delete-property-btn-${p.property_id}`}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      onClick={() => handleStartEditListing(p)}
+                                      className="p-1.5 text-neutral-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                      id={`edit-property-btn-${p.property_id}`}
+                                      title="Edit property parameters"
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteListing(p.property_id)}
+                                      className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                      id={`delete-property-btn-${p.property_id}`}
+                                      title="Delete property"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -1393,7 +1508,7 @@ export default function RealtorDashboard({
         </AnimatePresence>
       </main>
 
-      {/* Modal: Create Property Listing */}
+      {/* Modal: Create/Edit Property Listing */}
       <AnimatePresence>
         {isCreatingListing && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1401,7 +1516,7 @@ export default function RealtorDashboard({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsCreatingListing(false)}
+              onClick={resetFormFields}
               className="fixed inset-0 bg-black opacity-40"
             />
 
@@ -1412,7 +1527,7 @@ export default function RealtorDashboard({
               className="relative z-10 w-full max-w-[640px] bg-white p-8 rounded-[24px] shadow-2xl overflow-y-auto max-h-[90vh]"
             >
               <button
-                onClick={() => setIsCreatingListing(false)}
+                onClick={resetFormFields}
                 className="absolute top-6 right-6 p-2 rounded-full hover:bg-neutral-50 transition-colors"
                 id="close-create-listing-modal"
               >
@@ -1420,9 +1535,15 @@ export default function RealtorDashboard({
               </button>
 
               <div className="mb-6">
-                <span className="font-mono text-xs tracking-widest text-neutral-400 uppercase">Architecture catalog creator</span>
-                <h3 className="text-2xl font-display font-medium text-neutral-900 mt-2">Publish Exclusive Asset</h3>
-                <p className="text-xs text-neutral-500">Only one document will be created. We never duplicate property records.</p>
+                <span className="font-mono text-xs tracking-widest text-neutral-400 uppercase">
+                  {editingPropertyId !== null ? 'Architecture document editor' : 'Architecture catalog creator'}
+                </span>
+                <h3 className="text-2xl font-display font-medium text-neutral-900 mt-2 font-display">
+                  {editingPropertyId !== null ? `Edit Exclusive Asset #${editingPropertyId}` : 'Publish Exclusive Asset'}
+                </h3>
+                <p className="text-xs text-neutral-500">
+                  {editingPropertyId !== null ? 'Modify existing parameters for this property listing record.' : 'Only one document will be created. We never duplicate property records.'}
+                </p>
               </div>
 
               <form onSubmit={handleCreateListingSubmit} className="space-y-4 font-sans text-xs">
@@ -1768,7 +1889,7 @@ export default function RealtorDashboard({
                 <div className="pt-6 flex justify-end gap-3">
                   <button
                     type="button"
-                    onClick={() => setIsCreatingListing(false)}
+                    onClick={resetFormFields}
                     className="px-5 py-2.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-700 rounded-xl"
                     id="cancel-create-listing"
                   >
@@ -1779,7 +1900,7 @@ export default function RealtorDashboard({
                     className="px-6 py-2.5 bg-black hover:bg-neutral-900 text-white rounded-xl font-bold cursor-pointer"
                     id="submit-create-listing"
                   >
-                    Save & Create Document
+                    {editingPropertyId !== null ? 'Update Listing Document' : 'Save & Create Document'}
                   </button>
                 </div>
               </form>
