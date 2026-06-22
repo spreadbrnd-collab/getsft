@@ -1,0 +1,6 @@
+{
+  "name": "GetSFT",
+  "description": "Premium SaaS listing and website builder for independent realtors and luxury properties.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
