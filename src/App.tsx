@@ -269,149 +269,151 @@ function AppContent() {
     <div className="min-h-screen bg-slate-50/50 selection:bg-teal-700/25 selection:text-teal-950 flex flex-col justify-between">
       
       {/* Dynamic Blur topbar Menu */}
-      <header className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 border-b ${
-        isScrolled 
-          ? 'bg-white/95 backdrop-blur-md border-neutral-150 py-1.5 shadow-xs' 
-          : 'bg-white/40 tracking-tight border-neutral-100 py-2'
-      }`}>
-        <div className="max-w-7xl mx-auto px-2 md:px-4 flex items-center justify-between">
-          
-          {/* Brand logo */}
-          <button 
-            onClick={() => {
-              setFilterIntent('All');
-              navigate('/');
-            }}
-            className="flex items-center gap-1.5 font-display font-medium text-sm sm:text-lg text-black group cursor-pointer"
-            id="brand-logo-home"
-          >
-            <div className="w-6.5 h-6.5 bg-neutral-900 hover:scale-97 transition-all rounded-md flex items-center justify-center text-white text-[11px] font-serif font-black">
-              sft
-            </div>
-            <span className="tracking-tight font-black hover:opacity-85 text-teal-750">getsft</span>
-          </button>
-
-          {/* Navigation Items (Visible when NOT on dashboard) */}
-          {!isDashboardRoute && (
-            <nav className="flex items-center gap-2.5 sm:gap-6 md:gap-8 text-[10px] sm:text-xs font-mono tracking-wider uppercase text-neutral-500">
-              <button 
-                onClick={() => {
-                  setFilterIntent('Buy');
-                  setSearchTrigger(false);
-                  navigate('/');
-                }}
-                className={`hover:text-black transition-colors ${location.pathname === '/' && filterIntent === 'Buy' ? 'text-teal-700 font-bold border-b-2 border-teal-700 pb-0.5' : ''}`}
-                id="nav-buy"
-              >
-                Buy
-              </button>
-              <button 
-                onClick={() => {
-                  setFilterIntent('Rent');
-                  setSearchTrigger(false);
-                  navigate('/');
-                }}
-                className={`hover:text-black transition-colors ${location.pathname === '/' && filterIntent === 'Rent' ? 'text-teal-700 font-bold border-b-2 border-teal-700 pb-0.5' : ''}`}
-                id="nav-rent"
-              >
-                Rent
-              </button>
-              <button 
-                onClick={() => {
-                  navigate('/agents');
-                }}
-                className={`hover:text-black transition-colors ${location.pathname === '/agents' ? 'text-teal-700 font-bold border-b-2 border-teal-700 pb-0.5' : ''}`}
-                id="nav-agents"
-              >
-                Realtors
-              </button>
-            </nav>
-          )}
-
-          {/* User Sign-In/Register Flow - Displaying only the dropdown selection */}
-          <div className="flex items-center gap-2">
-            {appState.currentUser ? (
-              <div className="relative">
-                <button
-                  onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
-                  className="w-9 h-9 rounded-full bg-teal-50 border border-teal-100 hover:bg-teal-100 hover:border-teal-200 flex items-center justify-center text-lg select-none cursor-pointer transition-transform duration-100 active:scale-95 focus:outline-none"
-                  id="user-profile-emoji-btn"
-                  title={`${appState.currentUser.name} (${appState.currentUser.role})`}
-                >
-                  {appState.currentUser.role === 'realtor' ? '🤵' : '👤'}
-                </button>
-                <AnimatePresence>
-                  {isUserDropdownOpen && (
-                    <>
-                      <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsUserDropdownOpen(false)} />
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                        className="absolute right-0 mt-2.5 w-52 bg-white border border-neutral-150 rounded-2xl shadow-xl py-3 z-50 font-sans text-xs"
-                      >
-                        <div className="px-4 py-2 border-b border-neutral-100 mb-1.5">
-                          <p className="font-bold text-neutral-900 truncate">{appState.currentUser.name}</p>
-                          <p className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest mt-0.5 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            {appState.currentUser.role === 'realtor' ? 'REAL ESTATE ADVISOR' : 'DISCERNING BUYER'}
-                          </p>
-                        </div>
-                        
-                        {appState.currentUser.role === 'realtor' ? (
-                          <button
-                            onClick={() => {
-                              setIsUserDropdownOpen(false);
-                              navigate('/dashboard');
-                            }}
-                            className="w-full text-left px-4 py-2 hover:bg-neutral-50 text-neutral-700 flex items-center gap-2 cursor-pointer font-medium"
-                          >
-                            🏢 Realtor CRM Console
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setIsUserDropdownOpen(false);
-                              navigate('/wishlist');
-                            }}
-                            className="w-full text-left px-4 py-2 hover:bg-neutral-50 text-neutral-700 flex items-center gap-2 cursor-pointer font-medium"
-                          >
-                            ⭐ Saved Wishlist Portal
-                          </button>
-                        )}
-
-                        <button
-                          onClick={() => {
-                            setIsUserDropdownOpen(false);
-                            handleLogout();
-                          }}
-                          className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-650 flex items-center gap-2 cursor-pointer border-t border-neutral-100 mt-2 pt-2 font-medium"
-                        >
-                          🚪 Exit Session (Sign Out)
-                        </button>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
+      {!isDashboardRoute && (
+        <header className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 border-b ${
+          isScrolled 
+            ? 'bg-white/95 backdrop-blur-md border-neutral-150 py-1.5 shadow-xs' 
+            : 'bg-white/40 tracking-tight border-neutral-100 py-2'
+        }`}>
+          <div className="max-w-7xl mx-auto px-2 md:px-4 flex items-center justify-between">
+            
+            {/* Brand logo */}
+            <button 
+              onClick={() => {
+                setFilterIntent('All');
+                navigate('/');
+              }}
+              className="flex items-center gap-1.5 font-display font-medium text-sm sm:text-lg text-black group cursor-pointer"
+              id="brand-logo-home"
+            >
+              <div className="w-6.5 h-6.5 bg-neutral-900 hover:scale-97 transition-all rounded-md flex items-center justify-center text-white text-[11px] font-serif font-black">
+                sft
               </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button
+              <span className="tracking-tight font-black hover:opacity-85 text-teal-750">getsft</span>
+            </button>
+
+            {/* Navigation Items (Visible when NOT on dashboard) */}
+            {!isDashboardRoute && (
+              <nav className="flex items-center gap-2.5 sm:gap-6 md:gap-8 text-[10px] sm:text-xs font-mono tracking-wider uppercase text-neutral-500">
+                <button 
                   onClick={() => {
-                    setAuthFormRole('buyer');
-                    setIsAuthOpen(true);
+                    setFilterIntent('Buy');
+                    setSearchTrigger(false);
+                    navigate('/');
                   }}
-                  className="px-4 py-1.5 bg-neutral-950 hover:bg-black text-white text-[11px] font-mono uppercase tracking-widest rounded-full flex items-center gap-1.5 cursor-pointer shadow-3xs active:scale-[0.98] transition-all font-bold"
-                  id="header-signin-btn"
+                  className={`hover:text-black transition-colors ${location.pathname === '/' && filterIntent === 'Buy' ? 'text-teal-700 font-bold border-b-2 border-teal-700 pb-0.5' : ''}`}
+                  id="nav-buy"
                 >
-                  🔑 Sign In / Join
+                  Buy
                 </button>
-              </div>
+                <button 
+                  onClick={() => {
+                    setFilterIntent('Rent');
+                    setSearchTrigger(false);
+                    navigate('/');
+                  }}
+                  className={`hover:text-black transition-colors ${location.pathname === '/' && filterIntent === 'Rent' ? 'text-teal-700 font-bold border-b-2 border-teal-700 pb-0.5' : ''}`}
+                  id="nav-rent"
+                >
+                  Rent
+                </button>
+                <button 
+                  onClick={() => {
+                    navigate('/agents');
+                  }}
+                  className={`hover:text-black transition-colors ${location.pathname === '/agents' ? 'text-teal-700 font-bold border-b-2 border-teal-700 pb-0.5' : ''}`}
+                  id="nav-agents"
+                >
+                  Realtors
+                </button>
+              </nav>
             )}
-          </div>
 
-        </div>
-      </header>
+            {/* User Sign-In/Register Flow - Displaying only the dropdown selection */}
+            <div className="flex items-center gap-2">
+              {appState.currentUser ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                    className="w-9 h-9 rounded-full bg-teal-50 border border-teal-100 hover:bg-teal-100 hover:border-teal-200 flex items-center justify-center text-lg select-none cursor-pointer transition-transform duration-100 active:scale-95 focus:outline-none"
+                    id="user-profile-emoji-btn"
+                    title={`${appState.currentUser.name} (${appState.currentUser.role})`}
+                  >
+                    {appState.currentUser.role === 'realtor' ? '🤵' : '👤'}
+                  </button>
+                  <AnimatePresence>
+                    {isUserDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsUserDropdownOpen(false)} />
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                          className="absolute right-0 mt-2.5 w-52 bg-white border border-neutral-150 rounded-2xl shadow-xl py-3 z-50 font-sans text-xs"
+                        >
+                          <div className="px-4 py-2 border-b border-neutral-100 mb-1.5">
+                            <p className="font-bold text-neutral-900 truncate">{appState.currentUser.name}</p>
+                            <p className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest mt-0.5 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                              {appState.currentUser.role === 'realtor' ? 'REAL ESTATE ADVISOR' : 'DISCERNING BUYER'}
+                            </p>
+                          </div>
+                          
+                          {appState.currentUser.role === 'realtor' ? (
+                            <button
+                              onClick={() => {
+                                setIsUserDropdownOpen(false);
+                                navigate('/dashboard');
+                              }}
+                              className="w-full text-left px-4 py-2 hover:bg-neutral-50 text-neutral-700 flex items-center gap-2 cursor-pointer font-medium"
+                            >
+                              🏢 Realtor CRM Console
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setIsUserDropdownOpen(false);
+                                navigate('/wishlist');
+                              }}
+                              className="w-full text-left px-4 py-2 hover:bg-neutral-50 text-neutral-700 flex items-center gap-2 cursor-pointer font-medium"
+                            >
+                              ⭐ Saved Wishlist Portal
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => {
+                              setIsUserDropdownOpen(false);
+                              handleLogout();
+                            }}
+                            className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-650 flex items-center gap-2 cursor-pointer border-t border-neutral-100 mt-2 pt-2 font-medium"
+                          >
+                            🚪 Exit Session (Sign Out)
+                          </button>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setAuthFormRole('buyer');
+                      setIsAuthOpen(true);
+                    }}
+                    className="px-4 py-1.5 bg-neutral-950 hover:bg-black text-white text-[11px] font-mono uppercase tracking-widest rounded-full flex items-center gap-1.5 cursor-pointer shadow-3xs active:scale-[0.98] transition-all font-bold"
+                    id="header-signin-btn"
+                  >
+                    🔑 Sign In / Join
+                  </button>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </header>
+      )}
 
       {/* Main Workspace Frame container */}
       <div className={`flex-1 ${isDashboardRoute ? 'pt-0' : 'pt-16 sm:pt-20'}`}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { 
   ArrowLeft, MapPin, BedDouble, Bath, Maximize2, Sparkles, Building2, 
@@ -7,6 +7,152 @@ import {
 } from 'lucide-react';
 import { Property, Realtor, Inquiry, User } from '../types';
 import { INITIAL_PROPERTIES } from '../mockData';
+
+const THEME_MAPPING: Record<string, {
+  bgColor: string;
+  textColor: string;
+  fontClass: string;
+  borderClass: string;
+  cardClass: string;
+  buttonClass: string;
+  badgeClass: string;
+  headingColor: string;
+  titleColor: string;
+  mutedText: string;
+  subBg: string;
+}> = {
+  Luxury: {
+    bgColor: 'bg-[#FAF6F0]',
+    textColor: 'text-[#34241d]',
+    fontClass: 'font-serif',
+    borderClass: 'border-[#dfb265]',
+    cardClass: 'bg-white border border-[#dfb265] shadow-md',
+    buttonClass: 'bg-[#dfb265] text-[#120106] hover:bg-[#691a1a] hover:text-[#FAF6F0]',
+    badgeClass: 'bg-[#dfb265] text-[#2c0004]',
+    headingColor: 'text-[#691a1a]',
+    titleColor: 'text-[#691a1a]',
+    mutedText: 'text-[#34241d]/75',
+    subBg: 'bg-[#691a1a]/5 border border-[#dfb265]/40',
+  },
+  Vintage: {
+    bgColor: 'bg-[#FAF8F5]',
+    textColor: 'text-[#2b251a]',
+    fontClass: 'font-serif',
+    borderClass: 'border-[#cda250]',
+    cardClass: 'bg-[#FAF8F5] border-2 border-[#1b3b2b]/20 shadow-md',
+    buttonClass: 'bg-[#cda250] text-[#1b3b2b] hover:bg-[#1b3b2b] hover:text-[#f4efe6]',
+    badgeClass: 'bg-[#cda250] text-[#1b3b2b]',
+    headingColor: 'text-[#1b3b2b]',
+    titleColor: 'text-[#1b3b2b]',
+    mutedText: 'text-[#2b251a]/75',
+    subBg: 'bg-[#cda250]/15 border border-[#cda250]/40',
+  },
+  Oasis: {
+    bgColor: 'bg-[#F2FAF7]',
+    textColor: 'text-[#06352F]',
+    fontClass: 'font-sans',
+    borderClass: 'border-[#ED9390]',
+    cardClass: 'bg-white shadow-md border-b-4 border-[#ED9390] border-t border-x border-[#ED9390]/40',
+    buttonClass: 'bg-[#ED9390] text-white hover:bg-[#0E6C5E]',
+    badgeClass: 'bg-[#ED9390] text-[#06352F]',
+    headingColor: 'text-[#0E6C5E]',
+    titleColor: 'text-[#06352F]',
+    mutedText: 'text-[#06352F]/75',
+    subBg: 'bg-[#F2FAF7] border border-[#ED9390]/30',
+  },
+  Nordic: {
+    bgColor: 'bg-[#F4F4F1]',
+    textColor: 'text-[#2E3532]',
+    fontClass: 'font-sans',
+    borderClass: 'border-[#7A8B7B]',
+    cardClass: 'bg-[#FCFCFC] border border-[#C2C9C0] shadow-sm',
+    buttonClass: 'bg-[#7A8B7B] text-white hover:bg-[#2E3532]',
+    badgeClass: 'bg-[#7A8B7B] text-white',
+    headingColor: 'text-[#7A8B7B]',
+    titleColor: 'text-[#2E3532]',
+    mutedText: 'text-[#2E3532]/75',
+    subBg: 'bg-[#C2C9C0]/20 border border-[#7A8B7B]/30',
+  },
+  Modern: {
+    bgColor: 'bg-[#0a051b]',
+    textColor: 'text-[#ffd3fb]',
+    fontClass: 'font-sans',
+    borderClass: 'border-fuchsia-500/30',
+    cardClass: 'bg-[#12072a]/95 border border-fuchsia-500/30 shadow-[0_0_20px_rgba(236,72,153,0.15)]',
+    buttonClass: 'bg-gradient-to-r from-fuchsia-600 via-purple-600 to-cyan-500 hover:from-cyan-500 hover:to-fuchsia-600 text-white',
+    badgeClass: 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/40',
+    headingColor: 'text-fuchsia-400',
+    titleColor: 'text-white',
+    mutedText: 'text-[#cbd5e1]/70',
+    subBg: 'bg-fuchsia-950/20 border border-fuchsia-500/20',
+  },
+  Neon: {
+    bgColor: 'bg-[#010902]',
+    textColor: 'text-[#dafebc]',
+    fontClass: 'font-mono',
+    borderClass: 'border-[#10b981]/30',
+    cardClass: 'bg-[#04200a]/95 border border-[#10b981]/40 shadow-[0_0_25px_rgba(16,185,129,0.22)]',
+    buttonClass: 'bg-gradient-to-r from-emerald-600 to-green-500 hover:from-green-500 hover:to-emerald-600 text-[#010902] font-bold',
+    badgeClass: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40',
+    headingColor: 'text-emerald-400',
+    titleColor: 'text-[#dafebc]',
+    mutedText: 'text-[#a6dfae]/70',
+    subBg: 'bg-emerald-950/20 border border-emerald-500/20',
+  },
+  Minimal: {
+    bgColor: 'bg-[#FEFCA3]',
+    textColor: 'text-black',
+    fontClass: 'font-mono',
+    borderClass: 'border-black',
+    cardClass: 'bg-white border-4 border-black shadow-[6px_6px_0_0_rgba(0,0,0,1)]',
+    buttonClass: 'bg-yellow-400 text-black border-2 border-black shadow-[3px_3px_0_0_rgba(0,0,0,1)] hover:bg-black hover:text-white',
+    badgeClass: 'bg-pink-400 text-black border border-black',
+    headingColor: 'text-black font-extrabold',
+    titleColor: 'text-black font-extrabold',
+    mutedText: 'text-black/80',
+    subBg: 'bg-yellow-50 border-2 border-black',
+  },
+  Techno: {
+    bgColor: 'bg-neutral-900',
+    textColor: 'text-white',
+    fontClass: 'font-mono',
+    borderClass: 'border-red-600',
+    cardClass: 'bg-neutral-850 border-4 border-red-600 shadow-[6px_6px_0_0_rgba(220,38,38,1)] text-white',
+    buttonClass: 'bg-red-600 text-white border-2 border-white shadow-[3px_3px_0_0_rgba(255,100,100,1)] hover:bg-white hover:text-black',
+    badgeClass: 'bg-orange-500 text-white border border-red-600',
+    headingColor: 'text-red-500 font-extrabold',
+    titleColor: 'text-white font-extrabold',
+    mutedText: 'text-neutral-300',
+    subBg: 'bg-neutral-800 border-2 border-red-600',
+  },
+  Bauhaus: {
+    bgColor: 'bg-[#F1ECE3]',
+    textColor: 'text-neutral-900',
+    fontClass: 'font-sans',
+    borderClass: 'border-neutral-900',
+    cardClass: 'bg-white border-4 border-neutral-900 shadow-[6px_6px_0_0_rgba(239,68,68,1)]',
+    buttonClass: 'bg-[#EF4444] text-white border-2 border-black shadow-[3px_3px_0_0_rgba(0,0,0,1)] hover:bg-[#FBBF24] hover:text-black',
+    badgeClass: 'bg-[#FBBF24] text-black border border-neutral-900',
+    headingColor: 'text-[#2B4C7E] font-bold',
+    titleColor: 'text-neutral-950 font-bold',
+    mutedText: 'text-neutral-600',
+    subBg: 'bg-white border-2 border-neutral-900',
+  },
+};
+
+const defaultTheme = {
+  bgColor: 'bg-slate-50/50',
+  textColor: 'text-neutral-900',
+  fontClass: 'font-sans',
+  borderClass: 'border-neutral-200',
+  cardClass: 'bg-white border border-neutral-150 rounded-[24px] shadow-3xs',
+  buttonClass: 'bg-teal-850 hover:bg-teal-900 text-white rounded-lg',
+  badgeClass: 'bg-teal-850 text-white',
+  headingColor: 'text-neutral-950',
+  titleColor: 'text-black',
+  mutedText: 'text-neutral-500',
+  subBg: 'bg-teal-50/15 border border-teal-100/60 rounded-[20px]',
+};
 
 interface PropertyDetailPageProps {
   property: Property;
@@ -56,6 +202,25 @@ export default function PropertyDetailPage({
 
   const pricePerSft = Math.round(property.price / property.area);
 
+  // Load and apply the realtor's chosen template theme
+  const themeName = (realtor && realtor.template) || 'Luxury';
+  const theme = THEME_MAPPING[themeName] || defaultTheme;
+
+  // Real-time page views tracking
+  useEffect(() => {
+    if (realtor?.id) {
+      try {
+        const storedViews = localStorage.getItem('getsft_page_views') || '{}';
+        const viewsObj = JSON.parse(storedViews);
+        const baseline = 145 + (INITIAL_PROPERTIES.filter(p => p.owner_id === realtor.id).length * 25);
+        viewsObj[realtor.id] = (viewsObj[realtor.id] || baseline) + 1;
+        localStorage.setItem('getsft_page_views', JSON.stringify(viewsObj));
+      } catch (e) {
+        console.error("Error setting page view count:", e);
+      }
+    }
+  }, [realtor?.id]);
+
   const handleInquiryForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName || !formEmail) return;
@@ -77,70 +242,69 @@ export default function PropertyDetailPage({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 space-y-8 animate-fade-in text-neutral-900">
-      
-      {/* Dynamic Navigation Row */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 px-3 py-1.5 border border-neutral-200 hover:border-black rounded-full font-mono text-[11px] uppercase tracking-wider transition-colors cursor-pointer text-neutral-600 hover:text-black"
-          id="detail-back-button"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Listings
-        </button>
-
-        <div className="flex items-center gap-4">
-          <span className="font-mono text-xs text-neutral-400">
-            ID: #{property.property_id}
-          </span>
-          <button
-            onClick={() => onToggleSaved(property.property_id)}
-            className={`px-4 py-2 rounded-full font-mono text-[11px] uppercase tracking-wider transition-all cursor-pointer border ${
-              isSaved 
-                ? 'bg-black border-black text-white' 
-                : 'bg-white border-neutral-200 text-neutral-600 hover:border-black'
-            }`}
-            id="detail-save-wishlist"
-          >
-            {isSaved ? '★ Wishlisted' : '☆ Save Residence'}
-          </button>
-        </div>
-      </div>
-
-      {/* Grid Layout: Main Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <div className={`min-h-screen ${theme.bgColor} ${theme.textColor} ${theme.fontClass} pb-20 transition-all duration-300`}>
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-8 animate-fade-in">
         
-        {/* Left main content col: Property details (8/12) */}
-        <div className="lg:col-span-8 space-y-8">
-          
-          {/* Main big display title */}
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className={`px-3 py-1 text-[10px] font-mono uppercase tracking-wider text-white ${
-                property.listingIntent === 'Rent' ? 'bg-teal-805' : 'bg-black'
-              } rounded`}>
-                For {property.listingIntent || 'Buy'}
-              </span>
-              <span className="px-3 py-1 bg-neutral-100 font-mono text-[10px] text-neutral-600 uppercase tracking-widest rounded">
-                {property.propertyType}
-              </span>
-              {property.status !== 'Active' && (
-                <span className="px-3 py-1 bg-teal-50 text-teal-800 font-mono text-[10px] uppercase rounded">
-                  {property.status}
-                </span>
-              )}
-            </div>
-            
-            <h1 className="text-3xl sm:text-5xl font-display font-light tracking-tight text-black leading-tight">
-              {property.title}
-            </h1>
+        {/* Dynamic Navigation Row */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={onBack}
+            className={`flex items-center gap-2 px-3 py-1.5 border border-neutral-350 hover:border-black rounded-full font-mono text-[11px] uppercase tracking-wider transition-colors cursor-pointer opacity-80 hover:opacity-100 ${theme.textColor}`}
+            id="detail-back-button"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Listings
+          </button>
 
-            <div className="flex items-center gap-1.5 font-mono text-xs text-neutral-400">
-              <MapPin className="w-4 h-4 text-teal-700" />
-              <span>{property.address}, {property.city}, {property.province} {property.postalCode}</span>
-            </div>
+          <div className="flex items-center gap-4">
+            <span className="font-mono text-xs opacity-60">
+              ID: #{property.property_id}
+            </span>
+            <button
+              onClick={() => onToggleSaved(property.property_id)}
+              className={`px-4 py-2 rounded-full font-mono text-[11px] uppercase tracking-wider transition-all cursor-pointer border ${
+                isSaved 
+                  ? theme.buttonClass + ' border-transparent' 
+                  : `bg-transparent ${theme.borderClass} ${theme.textColor} hover:opacity-80`
+              }`}
+              id="detail-save-wishlist"
+            >
+              {isSaved ? '★ Wishlisted' : '☆ Save Residence'}
+            </button>
           </div>
+        </div>
+
+        {/* Grid Layout: Main Columns */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          {/* Left main content col: Property details (8/12) */}
+          <div className="lg:col-span-8 space-y-8">
+            
+            {/* Main big display title */}
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className={`px-3 py-1 text-[10px] font-mono uppercase tracking-wider text-white bg-black rounded`}>
+                  For {property.listingIntent || 'Buy'}
+                </span>
+                <span className={`px-3 py-1 bg-neutral-200/50 font-mono text-[10px] uppercase tracking-widest rounded ${theme.textColor}`}>
+                  {property.propertyType}
+                </span>
+                {property.status !== 'Active' && (
+                  <span className={`px-3 py-1 bg-teal-500/10 font-mono text-[10px] uppercase rounded`}>
+                    {property.status}
+                  </span>
+                )}
+              </div>
+              
+              <h1 className={`text-3xl sm:text-5xl font-display font-light tracking-tight ${theme.titleColor} leading-tight`}>
+                {property.title}
+              </h1>
+
+              <div className="flex items-center gap-1.5 font-mono text-xs opacity-80">
+                <MapPin className="w-4 h-4" />
+                <span>{property.address}, {property.city}, {property.province} {property.postalCode}</span>
+              </div>
+            </div>
 
           {/* Elegant Image Gallery with thumbnail sidebar indicator */}
           <div className="space-y-3">
@@ -169,82 +333,82 @@ export default function PropertyDetailPage({
             )}
           </div>
 
-          {/* Quick Metrics highlight layout bar */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-5 bg-neutral-50 rounded-[20px] border border-neutral-150">
+                  {/* Quick Metrics highlight layout bar */}
+          <div className={`grid grid-cols-2 lg:grid-cols-4 gap-4 p-5 ${theme.subBg}`}>
             {property.listingIntent === 'Rent' ? (
               <>
                 {/* RENTER'S VIEW */}
                 <div className="space-y-1">
-                  <span className="text-[10px] font-mono uppercase tracking-wide text-neutral-400 block">Monthly Rent Rate</span>
-                  <span className="text-xl font-display font-semibold text-black mt-0.5 block">
+                  <span className="text-[10px] font-mono uppercase tracking-wide opacity-60 block">Monthly Rent Rate</span>
+                  <span className={`text-xl font-display font-semibold ${theme.titleColor} mt-0.5 block`}>
                     {isINR ? `₹ ${(property.price / 100000).toFixed(2)} Lacs` : `$${property.price.toLocaleString()}`}
-                    <span className="text-xs font-mono text-neutral-500 font-normal"> / mo</span>
+                    <span className="text-xs font-mono opacity-50 font-normal"> / mo</span>
                   </span>
-                  <span className="text-[9px] font-mono text-[#b38e68] block">Fully-Vetted Base Rate</span>
+                  <span className="text-[9px] font-mono opacity-70 block">Fully-Vetted Base Rate</span>
                 </div>
 
                 <div className="space-y-1">
-                  <span className="text-[10px] font-mono uppercase tracking-wide text-neutral-400 block">Rent per Sq Ft</span>
-                  <span className="text-xl font-display font-semibold text-black mt-0.5 block">
+                  <span className="text-[10px] font-mono uppercase tracking-wide opacity-60 block">Rent per Sq Ft</span>
+                  <span className={`text-xl font-display font-semibold ${theme.titleColor} mt-0.5 block`}>
                     {isINR ? `₹ ${(property.price / property.area).toFixed(1)}` : `$${(property.price / property.area).toFixed(2)}`}
-                    <span className="text-xs font-mono text-neutral-500 font-normal"> / SFT / mo</span>
+                    <span className="text-xs font-mono opacity-50 font-normal"> / SFT / mo</span>
                   </span>
-                  <span className="text-[9px] font-mono text-teal-800 block">Calculated Space Cost</span>
+                  <span className="text-[9px] font-mono opacity-70 block">Calculated Space Cost</span>
                 </div>
 
                 <div className="space-y-1">
-                  <span className="text-[10px] font-mono uppercase tracking-wide text-neutral-400 block">Yearly Rent Outlay</span>
-                  <span className="text-xl font-display font-semibold text-neutral-900 mt-0.5 block font-bold">
+                  <span className="text-[10px] font-mono uppercase tracking-wide opacity-60 block font-bold">Yearly Rent Outlay</span>
+                  <span className={`text-xl font-display font-bold ${theme.headingColor} mt-0.5 block`}>
                     {isINR ? `₹ ${((property.price * 12) / 100000).toFixed(2)} Lacs` : `$${(property.price * 12).toLocaleString()}`}
-                    <span className="text-xs font-mono text-neutral-500 font-normal"> / yr</span>
+                    <span className="text-xs font-mono opacity-50 font-normal"> / yr</span>
                   </span>
-                  <span className="text-[9px] font-mono text-teal-800 block">Total Annual Rent Cost</span>
+                  <span className="text-[9px] font-mono opacity-70 block">Total Annual Rent Cost</span>
                 </div>
 
                 <div className="space-y-1">
-                  <span className="text-[10px] font-mono uppercase tracking-wide text-neutral-400 block">Lease Agreement</span>
-                  <span className="text-xl font-display font-semibold text-black mt-0.5 block">
+                  <span className="text-[10px] font-mono uppercase tracking-wide opacity-60 block">Lease Agreement</span>
+                  <span className={`text-xl font-display font-semibold ${theme.titleColor} mt-0.5 block`}>
                     12 Months
                   </span>
-                  <span className="text-[9px] font-mono text-teal-800 block">1-Month Security Deposit</span>
+                  <span className="text-[9px] font-mono opacity-70 block">1-Month Security Deposit</span>
                 </div>
               </>
             ) : (
               <>
                 {/* BUYER'S VIEW */}
                 <div className="space-y-1">
-                  <span className="text-[10px] font-mono uppercase tracking-wide text-neutral-400 block">List Sale Price</span>
-                  <span className="text-xl font-display font-semibold text-black mt-0.5 block">
+                  <span className="text-[10px] font-mono uppercase tracking-wide opacity-60 block">List Sale Price</span>
+                  <span className={`text-xl font-display font-semibold ${theme.titleColor} mt-0.5 block`}>
                     {isINR ? (property.price >= 10000000 ? `₹ ${(property.price / 10000000).toFixed(2)} Cr` : `₹ ${(property.price / 100000).toFixed(2)} Lakhs`) : `$${property.price.toLocaleString()}`}
                   </span>
-                  <span className="text-[9px] font-mono text-teal-800 block">Verified Market Valuation</span>
+                  <span className="text-[9px] font-mono opacity-70 block">Verified Market Valuation</span>
                 </div>
 
                 <div className="space-y-1">
-                  <span className="text-[10px] font-mono uppercase tracking-wide text-neutral-400 block">Unit Cost (SFT)</span>
-                  <span className="text-xl font-display font-semibold text-black mt-0.5 block">
+                  <span className="text-[10px] font-mono uppercase tracking-wide opacity-60 block">Unit Cost (SFT)</span>
+                  <span className={`text-xl font-display font-semibold ${theme.titleColor} mt-0.5 block`}>
                     {isINR ? `₹ ${(pricePerSft / 100).toFixed(1)} K` : `$${pricePerSft.toLocaleString()}`}
-                    <span className="text-xs font-mono text-neutral-500 font-normal"> / SFT</span>
+                    <span className="text-xs font-mono opacity-50 font-normal"> / SFT</span>
                   </span>
-                  <span className="text-[9px] font-mono text-teal-800 block">Acquisition Floor Price</span>
+                  <span className="text-[9px] font-mono opacity-70 block">Acquisition Floor Price</span>
                 </div>
 
                 <div className="space-y-1">
-                  <span className="text-[10px] font-mono uppercase tracking-wide text-neutral-400 block">Est. Market Rent Value</span>
-                  <span className="text-xl font-display font-semibold text-teal-900 mt-0.5 block font-bold">
+                  <span className="text-[10px] font-mono uppercase tracking-wide opacity-60 block font-bold">Est. Market Rent Value</span>
+                  <span className={`text-xl font-display font-bold ${theme.headingColor} mt-0.5 block`}>
                     {isINR ? `₹ ${(property.monthlyRentEstimate || Math.round(property.price * 0.0035)).toLocaleString('en-IN')}` : `$${(property.monthlyRentEstimate || Math.round(property.price * 0.0035)).toLocaleString()}`}
-                    <span className="text-xs font-mono text-neutral-500 font-normal"> / mo</span>
+                    <span className="text-xs font-mono opacity-50 font-normal"> / mo</span>
                   </span>
-                  <span className="text-[9px] font-mono text-teal-800 block">Potential Passive Monthly Yield</span>
+                  <span className="text-[9px] font-mono opacity-70 block">Potential Passive Monthly Yield</span>
                 </div>
 
                 <div className="space-y-1">
-                  <span className="text-[10px] font-mono uppercase tracking-wide text-neutral-400 block">Total Liveable Area</span>
-                  <span className="text-xl font-display font-semibold text-black mt-0.5 block">
+                  <span className="text-[10px] font-mono uppercase tracking-wide opacity-60 block">Total Liveable Area</span>
+                  <span className={`text-xl font-display font-semibold ${theme.titleColor} mt-0.5 block`}>
                     {property.area.toLocaleString()}
-                    <span className="text-xs font-mono text-neutral-500 font-normal"> SFT</span>
+                    <span className="text-xs font-mono opacity-50 font-normal"> SFT</span>
                   </span>
-                  <span className="text-[9px] font-mono text-[#b38e68] block">Vetted Structural Floorplan</span>
+                  <span className="text-[9px] font-mono opacity-70 block">Vetted Structural Floorplan</span>
                 </div>
               </>
             )}
@@ -252,8 +416,8 @@ export default function PropertyDetailPage({
 
           {/* Home Overview & Description details */}
           <div className="space-y-4">
-            <h2 className="text-xl font-display font-medium text-black">Home Overview</h2>
-            <div className="text-neutral-600 leading-relaxed text-sm space-y-4 font-sans max-w-none">
+            <h2 className={`text-xl font-display font-medium ${theme.headingColor}`}>Home Overview</h2>
+            <div className={`leading-relaxed text-sm space-y-4 font-sans max-w-none opacity-90`}>
               <p>{property.description}</p>
             </div>
           </div>
@@ -883,8 +1047,8 @@ export default function PropertyDetailPage({
         <div className="lg:col-span-4 lg:sticky lg:top-24 space-y-6">
           
           {/* Realtor / Broker Profile Info Box */}
-          <div className="bg-[#ffffff] rounded-3xl border border-neutral-150 p-6 space-y-6">
-            <div className="flex items-center gap-4 pb-4 border-b border-neutral-100">
+          <div className={`${theme.cardClass} p-6 space-y-6 rounded-3xl`}>
+            <div className={`flex items-center gap-4 pb-4 border-b ${theme.borderClass}`}>
               <img
                 src={realtor.profileImage}
                 alt={realtor.name}
@@ -892,29 +1056,29 @@ export default function PropertyDetailPage({
                 className="w-14 h-14 rounded-2xl object-cover border border-neutral-200"
               />
               <div className="space-y-0.5">
-                <h3 className="font-display font-bold text-base text-neutral-900 leading-tight">
+                <h3 className={`font-display font-bold text-base ${theme.titleColor} leading-tight`}>
                   {realtor.name}
                 </h3>
-                <span className="font-mono text-[9px] text-[#b38e68] uppercase tracking-wider block">
+                <span className={`font-mono text-[9px] uppercase tracking-wider block ${theme.headingColor}`}>
                   {realtor.title}
                 </span>
-                <div className="flex items-center gap-1 text-[10px] text-neutral-400 font-mono">
+                <div className="flex items-center gap-1 text-[10px] opacity-70 font-mono">
                   <Compass className="w-3.5 h-3.5" />
                   <span>Licensed in {realtor.city}</span>
                 </div>
               </div>
             </div>
 
-            <p className="text-xs text-neutral-500 font-sans leading-relaxed">
+            <p className="text-xs opacity-90 font-sans leading-relaxed">
               "{realtor.bio}"
             </p>
 
             <div className="flex flex-wrap gap-2 text-[10px] font-mono">
-              <span className="bg-neutral-50 text-neutral-600 px-2.5 py-1 rounded">
+              <span className={`px-2.5 py-1 rounded bg-[#000000]/5 ${theme.textColor}`}>
                 ★ {realtor.experience} Yrs Experience
               </span>
               {realtor.languages.slice(0, 2).map((lang) => (
-                <span key={lang} className="bg-neutral-50 text-neutral-600 px-2.5 py-1 rounded">
+                <span key={lang} className={`px-2.5 py-1 rounded bg-[#000000]/5 ${theme.textColor}`}>
                   {lang}
                 </span>
               ))}
@@ -922,12 +1086,12 @@ export default function PropertyDetailPage({
           </div>
 
           {/* Interactive Request Form (No popups!) */}
-          <div className="bg-[#ffffff] rounded-3xl border border-neutral-150 p-6 space-y-4">
+          <div className={`${theme.cardClass} p-6 space-y-4 rounded-3xl`}>
             <div className="space-y-1">
-              <h3 className="font-display font-medium text-sm text-black uppercase tracking-wider">
+              <h3 className={`font-display font-medium text-sm uppercase tracking-wider ${theme.headingColor}`}>
                 Direct Inquiry
               </h3>
-              <p className="text-xs text-neutral-400 font-sans">
+              <p className="text-xs opacity-60 font-sans">
                 Submit this form to trigger a secure response back regarding this project.
               </p>
             </div>
@@ -936,16 +1100,16 @@ export default function PropertyDetailPage({
               <motion.div 
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="p-5 bg-[#f5faf5] border border-emerald-100 text-emerald-800 rounded-2xl flex flex-col items-center text-center space-y-2"
+                className="p-5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-2xl flex flex-col items-center text-center space-y-2"
               >
-                <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
                 <h4 className="text-xs font-mono uppercase tracking-wider font-bold">Request Verified</h4>
-                <p className="text-[11px] font-sans text-emerald-700">
+                <p className="text-[11px] font-sans text-emerald-500/90">
                   Your inquiry message was registered directly in state for representative {realtor.name}. Follow up expected shortly.
                 </p>
                 <button 
                   onClick={() => setSubmitted(false)}
-                  className="text-[10px] font-mono text-emerald-600 mt-2 hover:underline"
+                  className="text-[10px] font-mono text-emerald-500 mt-2 hover:underline"
                 >
                   Send another message
                 </button>
@@ -953,54 +1117,54 @@ export default function PropertyDetailPage({
             ) : (
               <form onSubmit={handleInquiryForm} className="space-y-3.5">
                 <div className="space-y-1">
-                  <label className="block text-[9px] font-mono uppercase tracking-wide text-neutral-400">Your Full Name</label>
+                  <label className="block text-[9px] font-mono uppercase tracking-wide opacity-70">Your Full Name</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Arthur Pendelton"
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-xs font-sans focus:bg-white focus:border-black outline-none transition-all"
+                    className={`w-full px-3 py-2 bg-neutral-100/30 border ${theme.borderClass} rounded-lg text-xs font-sans outline-none transition-all ${theme.textColor}`}
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[9px] font-mono uppercase tracking-wide text-neutral-400">Email Address</label>
+                  <label className="block text-[9px] font-mono uppercase tracking-wide opacity-70">Email Address</label>
                   <input
                     type="email"
                     required
                     placeholder="e.g. client@getsft.com"
                     value={formEmail}
                     onChange={(e) => setFormEmail(e.target.value)}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-xs font-sans focus:bg-white focus:border-black outline-none transition-all"
+                    className={`w-full px-3 py-2 bg-neutral-100/30 border ${theme.borderClass} rounded-lg text-xs font-sans outline-none transition-all ${theme.textColor}`}
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[9px] font-mono uppercase tracking-wide text-neutral-400">Phone (Optional)</label>
+                  <label className="block text-[9px] font-mono uppercase tracking-wide opacity-70">Phone (Optional)</label>
                   <input
                     type="tel"
                     placeholder="e.g. +1 (604) 555-0100"
                     value={formPhone}
                     onChange={(e) => setFormPhone(e.target.value)}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-xs font-sans focus:bg-white focus:border-black outline-none transition-all"
+                    className={`w-full px-3 py-2 bg-neutral-100/30 border ${theme.borderClass} rounded-lg text-xs font-sans outline-none transition-all ${theme.textColor}`}
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[9px] font-mono uppercase tracking-wide text-neutral-400">Message Inquiry</label>
+                  <label className="block text-[9px] font-mono uppercase tracking-wide opacity-70">Message Inquiry</label>
                   <textarea
                     rows={4}
                     required
                     value={formMessage}
                     onChange={(e) => setFormMessage(e.target.value)}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-xs font-sans focus:bg-white focus:border-black outline-none transition-all resize-none"
+                    className={`w-full px-3 py-2 bg-neutral-100/30 border ${theme.borderClass} rounded-lg text-xs font-sans outline-none transition-all resize-none ${theme.textColor}`}
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-black hover:bg-neutral-900 text-white font-mono text-[10px] uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-colors active:scale-98"
+                  className={`w-full py-2.5 ${theme.buttonClass} font-mono text-[10px] uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98`}
                 >
                   <Send className="w-3.5 h-3.5" />
                   Transmit Consultation request
@@ -1014,5 +1178,6 @@ export default function PropertyDetailPage({
       </div>
 
     </div>
+  </div>
   );
 }
