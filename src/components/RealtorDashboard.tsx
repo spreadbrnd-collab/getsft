@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutDashboard, FileText, Users, Globe, SwatchBook, LineChart, Settings, CreditCard, LogOut,
   Plus, Eye, CheckCircle, Trash2, ArrowUpRight, DollarSign, Calendar, Sliders, GlobeIcon, 
-  MapPin, Check, Sparkles, Send, Mail, Phone, BookOpen, Edit, PhoneCall
+  MapPin, Check, Sparkles, Send, Mail, Phone, BookOpen, Edit, PhoneCall, Home, Upload, Camera
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { User, Property, Inquiry, ActiveTab, Realtor } from '../types';
 import RealtorProfilePage from './RealtorProfilePage';
 
@@ -27,7 +28,9 @@ export default function RealtorDashboard({
   onUpdateInquiries,
   onLogout,
 }: RealtorDashboardProps) {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [profile, setProfile] = useState<Realtor>(
     currentUser.realtorProfile || {
       id: currentUser.id,
@@ -171,6 +174,8 @@ export default function RealtorDashboard({
   const [settingsSpecs, setSettingsSpecs] = useState(profile.specializations.join(', '));
   const [settingsDomain, setSettingsDomain] = useState(profile.customDomain || `${currentUser.id}.getsft.com`);
   const [settingsExp, setSettingsExp] = useState(profile.experience.toString());
+  const [settingsProfileImage, setSettingsProfileImage] = useState(profile.profileImage);
+  const [settingsCoverImage, setSettingsCoverImage] = useState(profile.coverImage);
   const [settingsSaveSuccess, setSettingsSaveSuccess] = useState(false);
 
   const [editingPropertyId, setEditingPropertyId] = useState<number | null>(null);
@@ -388,7 +393,9 @@ export default function RealtorDashboard({
       experience: parseInt(settingsExp || '5'),
       languages: settingsLang.split(',').map(s => s.trim()).filter(Boolean),
       specializations: settingsSpecs.split(',').map(s => s.trim()).filter(Boolean),
-      customDomain: settingsDomain
+      customDomain: settingsDomain,
+      profileImage: settingsProfileImage,
+      coverImage: settingsCoverImage
     };
 
     setProfile(updatedProfile);
@@ -418,24 +425,43 @@ export default function RealtorDashboard({
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row font-sans">
       
-      {/* Absolute Header banner indicator */}
-      <div className="absolute top-0 right-0 left-0 bg-neutral-900 text-white text-[10px] uppercase font-mono tracking-widest text-center py-1 z-30 flex items-center justify-center gap-2 px-4 md:hidden">
-        <span>SFT Hub Console v2.60</span>
+      {/* Mobile Sticky Topbar Header */}
+      <div className="sticky top-0 z-40 bg-white border-b border-neutral-150 px-6 py-4 flex items-center justify-between md:hidden shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-md bg-black flex items-center justify-center text-white font-serif font-black text-xs">
+            SFT
+          </div>
+          <span className="font-display font-bold text-sm text-neutral-900">GetSFT CRM</span>
+        </div>
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg cursor-pointer text-[11px] font-mono font-bold uppercase tracking-wider shadow-xs active:scale-95 transition-all"
+        >
+          {isMobileMenuOpen ? 'Close Menu ✕' : 'CRM Menu ☰'}
+        </button>
       </div>
 
       {/* Modern Cupertino Sidebar Navigation */}
-      <aside className="w-full md:w-64 bg-[#fdfdfd] border-b md:border-b-0 md:border-r border-[#eaeaea] p-6 flex flex-col justify-between shrink-0 pt-10 md:pt-6">
+      <aside className={`w-full md:w-64 bg-[#fdfdfd] border-b md:border-b-0 md:border-r border-[#eaeaea] p-6 flex-col justify-between shrink-0 pt-6 md:pt-6 ${isMobileMenuOpen ? 'flex' : 'hidden md:flex'}`}>
         <div>
           {/* Platform Identity */}
-          <div className="mb-8 flex items-center gap-3 px-2">
-            <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white font-serif font-black text-sm">
+          <button
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              navigate('/');
+            }}
+            className="mb-8 flex items-center gap-3 px-2 text-left w-full hover:opacity-80 transition-opacity group cursor-pointer"
+            id="dashboard-brand-logo"
+            title="Return to getsft.com Homepage"
+          >
+            <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white font-serif font-black text-sm shrink-0 group-hover:scale-95 transition-transform">
               SFT
             </div>
             <div>
-              <span className="font-display font-bold text-lg leading-tight tracking-tight block">GetSFT CRM</span>
-              <span className="text-[10px] font-mono tracking-wider text-gray-400 block uppercase">Independent workspace</span>
+              <span className="font-display font-bold text-lg leading-tight tracking-tight block text-neutral-900">GetSFT CRM</span>
+              <span className="text-[10px] font-mono tracking-wider text-teal-600 block uppercase font-bold hover:underline">← Go Homepage</span>
             </div>
-          </div>
+          </button>
 
           {/* Quick info of authenticated Agent */}
           <div className="mb-6 p-4 rounded-2xl bg-neutral-50 border border-neutral-100/50 flex items-center gap-3">
@@ -464,6 +490,7 @@ export default function RealtorDashboard({
                   onClick={() => {
                     setActiveTab(item.id as ActiveTab);
                     setIsLivePreviewing(false);
+                    setIsMobileMenuOpen(false); // Auto-close mobile menu on selection
                   }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-sans font-medium transition-all duration-150 ${
                     isActive 
@@ -481,10 +508,19 @@ export default function RealtorDashboard({
         </div>
 
         {/* Bottom actions */}
-        <div className="mt-8 pt-6 border-t border-[#eaeaea]">
+        <div className="mt-8 pt-6 border-t border-[#eaeaea] space-y-2">
+          <button
+            onClick={() => navigate('/')}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-sans font-medium text-neutral-700 hover:bg-neutral-50 hover:text-black transition-colors cursor-pointer"
+            id="sidebar-home-btn"
+          >
+            <Home className="w-4 h-4 text-neutral-500" />
+            Go to SFT Homepage
+          </button>
+          
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-sans font-medium text-red-600 hover:bg-red-50/50 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-sans font-medium text-red-650 hover:bg-red-50/50 transition-colors cursor-pointer"
             id="sidebar-logout-btn"
           >
             <LogOut className="w-4 h-4" />
@@ -1028,17 +1064,49 @@ export default function RealtorDashboard({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
                             <label className="block text-xs font-mono tracking-wider uppercase text-neutral-400 mb-1.5">Profile Avatar Portrait Image URL</label>
-                            <input
-                              type="text"
-                              value={profile.profileImage}
-                              onChange={(e) => {
-                                const up = { ...profile, profileImage: e.target.value };
-                                setProfile(up);
-                                onUpdateRealtorProfile(up);
-                              }}
-                              className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 text-[11px] font-mono rounded-lg outline-none focus:border-black"
-                              id="website-avatar-url"
-                            />
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={profile.profileImage}
+                                onChange={(e) => {
+                                  const up = { ...profile, profileImage: e.target.value };
+                                  setProfile(up);
+                                  onUpdateRealtorProfile(up);
+                                  setSettingsProfileImage(e.target.value);
+                                }}
+                                className="flex-1 px-3 py-2 bg-neutral-50 border border-neutral-200 text-[11px] font-mono rounded-lg outline-none focus:border-black"
+                                id="website-avatar-url"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => document.getElementById('website-avatar-uploader')?.click()}
+                                className="px-3 bg-neutral-900 text-white rounded-lg text-xs font-semibold hover:bg-neutral-800 transition-colors cursor-pointer"
+                              >
+                                Upload
+                              </button>
+                              <input 
+                                type="file" 
+                                id="website-avatar-uploader" 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={(e) => {
+                                  const files = e.target.files;
+                                  if (files && files[0]) {
+                                    const reader = new FileReader();
+                                    reader.onload = (event) => {
+                                      if (event.target?.result) {
+                                        const resStr = event.target.result as string;
+                                        setSettingsProfileImage(resStr);
+                                        const up = { ...profile, profileImage: resStr };
+                                        setProfile(up);
+                                        onUpdateRealtorProfile(up);
+                                      }
+                                    };
+                                    reader.readAsDataURL(files[0]);
+                                  }
+                                }}
+                              />
+                            </div>
                             <div className="w-16 h-16 rounded-xl overflow-hidden mt-3 bg-neutral-100 border border-neutral-200">
                               <img src={profile.profileImage} alt="Avatar portrait" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                             </div>
@@ -1046,17 +1114,49 @@ export default function RealtorDashboard({
 
                           <div>
                             <label className="block text-xs font-mono tracking-wider uppercase text-neutral-400 mb-1.5">Cover Header Background Image URL</label>
-                            <input
-                              type="text"
-                              value={profile.coverImage}
-                              onChange={(e) => {
-                                const up = { ...profile, coverImage: e.target.value };
-                                setProfile(up);
-                                onUpdateRealtorProfile(up);
-                              }}
-                              className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 text-[11px] font-mono rounded-lg outline-none focus:border-black"
-                              id="website-cover-url"
-                            />
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={profile.coverImage}
+                                onChange={(e) => {
+                                  const up = { ...profile, coverImage: e.target.value };
+                                  setProfile(up);
+                                  onUpdateRealtorProfile(up);
+                                  setSettingsCoverImage(e.target.value);
+                                }}
+                                className="flex-1 px-3 py-2 bg-neutral-50 border border-neutral-200 text-[11px] font-mono rounded-lg outline-none focus:border-black"
+                                id="website-cover-url"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => document.getElementById('website-cover-uploader')?.click()}
+                                className="px-3 bg-neutral-900 text-white rounded-lg text-xs font-semibold hover:bg-neutral-800 transition-colors cursor-pointer"
+                              >
+                                Upload
+                              </button>
+                              <input 
+                                type="file" 
+                                id="website-cover-uploader" 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={(e) => {
+                                  const files = e.target.files;
+                                  if (files && files[0]) {
+                                    const reader = new FileReader();
+                                    reader.onload = (event) => {
+                                      if (event.target?.result) {
+                                        const resStr = event.target.result as string;
+                                        setSettingsCoverImage(resStr);
+                                        const up = { ...profile, coverImage: resStr };
+                                        setProfile(up);
+                                        onUpdateRealtorProfile(up);
+                                      }
+                                    };
+                                    reader.readAsDataURL(files[0]);
+                                  }
+                                }}
+                              />
+                            </div>
                             <div className="h-16 rounded-xl overflow-hidden mt-3 bg-neutral-100 border border-neutral-200 relative">
                               <img src={profile.coverImage} alt="Cover layout" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                             </div>
@@ -1407,6 +1507,156 @@ export default function RealtorDashboard({
                           className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-sans outline-none focus:border-black focus:bg-white resize-none"
                           id="settings-biography-input"
                         />
+                      </div>
+
+                      {/* Interactive Profile Picture & Cover Photo (DP) uploading */}
+                      <div className="border border-neutral-200/60 rounded-2xl p-6 bg-neutral-50/50 space-y-6">
+                        <div>
+                          <h4 className="text-sm font-sans font-bold text-neutral-800">Media Branding (DP & Header Cover)</h4>
+                          <p className="text-[11px] text-neutral-500 mt-0.5">Drag & drop files or click to upload your official headshot and custom workspace cover photos below.</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Profile Picture Uploader */}
+                          <div className="space-y-2">
+                            <span className="block text-xs font-mono tracking-wider uppercase text-neutral-400">Profile Avatar headshot</span>
+                            <div 
+                              className="border-2 border-dashed border-neutral-200 hover:border-black rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer bg-white transition-all group relative overflow-hidden"
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const files = e.dataTransfer.files;
+                                if (files && files[0]) {
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    if (event.target?.result) {
+                                      setSettingsProfileImage(event.target.result as string);
+                                    }
+                                  };
+                                  reader.readAsDataURL(files[0]);
+                                }
+                              }}
+                              onClick={() => document.getElementById('settings-avatar-uploader-file')?.click()}
+                            >
+                              <input 
+                                type="file" 
+                                id="settings-avatar-uploader-file" 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={(e) => {
+                                  const files = e.target.files;
+                                  if (files && files[0]) {
+                                    const reader = new FileReader();
+                                    reader.onload = (event) => {
+                                      if (event.target?.result) {
+                                        setSettingsProfileImage(event.target.result as string);
+                                      }
+                                    };
+                                    reader.readAsDataURL(files[0]);
+                                  }
+                                }}
+                              />
+                              {settingsProfileImage ? (
+                                <div className="relative group/img w-20 h-20 rounded-full overflow-hidden border border-neutral-200 shadow-sm mb-2">
+                                  <img src={settingsProfileImage} alt="Avatar profile preview" className="w-full h-full object-cover" />
+                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
+                                    <Camera className="w-5 h-5 text-white" />
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="w-16 h-16 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-400 mb-2 group-hover:scale-105 transition-transform">
+                                  <Camera className="w-6 h-6" />
+                                </div>
+                              )}
+                              <span className="text-xs font-bold text-neutral-700 block">Drag & Drop Headshot</span>
+                              <span className="text-[10px] text-neutral-400 mt-1">Or click to select image (PNG, JPG)</span>
+                            </div>
+                            
+                            {/* Option to paste direct image URL */}
+                            <input
+                              type="text"
+                              value={settingsProfileImage}
+                              onChange={(e) => setSettingsProfileImage(e.target.value)}
+                              placeholder="Or paste profile image URL..."
+                              className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg text-xs font-mono outline-none focus:border-black"
+                              id="settings-avatar-url-input"
+                            />
+                          </div>
+
+                          {/* Cover Photo Uploader */}
+                          <div className="space-y-2">
+                            <span className="block text-xs font-mono tracking-wider uppercase text-neutral-400">Header Cover Photo (DP)</span>
+                            <div 
+                              className="border-2 border-dashed border-neutral-200 hover:border-black rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer bg-white transition-all group relative overflow-hidden"
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const files = e.dataTransfer.files;
+                                if (files && files[0]) {
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    if (event.target?.result) {
+                                      setSettingsCoverImage(event.target.result as string);
+                                    }
+                                  };
+                                  reader.readAsDataURL(files[0]);
+                                }
+                              }}
+                              onClick={() => document.getElementById('settings-cover-uploader-file')?.click()}
+                            >
+                              <input 
+                                type="file" 
+                                id="settings-cover-uploader-file" 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={(e) => {
+                                  const files = e.target.files;
+                                  if (files && files[0]) {
+                                    const reader = new FileReader();
+                                    reader.onload = (event) => {
+                                      if (event.target?.result) {
+                                        setSettingsCoverImage(event.target.result as string);
+                                      }
+                                    };
+                                    reader.readAsDataURL(files[0]);
+                                  }
+                                }}
+                              />
+                              {settingsCoverImage ? (
+                                <div className="relative group/cover w-full h-16 rounded-lg overflow-hidden border border-neutral-200 shadow-sm mb-2">
+                                  <img src={settingsCoverImage} alt="Cover preview" className="w-full h-full object-cover" />
+                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition-opacity">
+                                    <Upload className="w-4 h-4 text-white" />
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="w-full h-12 rounded-lg bg-neutral-100 flex items-center justify-center text-neutral-400 mb-2 group-hover:scale-105 transition-transform">
+                                  <Upload className="w-5 h-5" />
+                                </div>
+                              )}
+                              <span className="text-xs font-bold text-neutral-700 block">Drag & Drop Cover Banner</span>
+                              <span className="text-[10px] text-neutral-400 mt-1">Or click to select photo</span>
+                            </div>
+                            
+                            {/* Option to paste direct Cover Photo URL */}
+                            <input
+                              type="text"
+                              value={settingsCoverImage}
+                              onChange={(e) => setSettingsCoverImage(e.target.value)}
+                              placeholder="Or paste cover photo URL..."
+                              className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg text-xs font-mono outline-none focus:border-black"
+                              id="settings-cover-url-input"
+                            />
+                          </div>
+                        </div>
                       </div>
 
                       <button

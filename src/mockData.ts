@@ -820,11 +820,29 @@ export function loadState(): AppState {
 
         parsed.properties = mergedProperties;
         
-        // Also self-heal realtors listing references
-        parsed.realtors = INITIAL_REALTORS.map(r => {
-          const existing = parsed.realtors.find((pr: any) => pr.id === r.id);
-          return { ...r, ...existing };
+        // Also self-heal realtors listing references & preserve custom realtors (e.g. Siddique)
+        const initialRealtorIds = new Set(INITIAL_REALTORS.map(r => r.id));
+        const customRealtors = parsed.realtors ? parsed.realtors.filter((pr: any) => pr && !initialRealtorIds.has(pr.id)) : [];
+        
+        // Scan parsed.users for any realtors with registered profiles not yet in customRealtors
+        const userRealtors = parsed.users ? parsed.users
+          .filter((u: any) => u && u.role === 'realtor' && u.realtorProfile && !initialRealtorIds.has(u.id))
+          .map((u: any) => u.realtorProfile) : [];
+        
+        const allCustomRealtors = [...customRealtors];
+        userRealtors.forEach((ur: any) => {
+          if (!allCustomRealtors.some((cr: any) => cr.id === ur.id)) {
+            allCustomRealtors.push(ur);
+          }
         });
+        
+        parsed.realtors = [
+          ...INITIAL_REALTORS.map(r => {
+            const existing = parsed.realtors ? parsed.realtors.find((pr: any) => pr && pr.id === r.id) : null;
+            return { ...r, ...existing };
+          }),
+          ...allCustomRealtors
+        ];
 
         return parsed as AppState;
       }

@@ -972,49 +972,6 @@ function AppContent() {
                     onRemoveFromWishlist={(id) => handleToggleWishlist(id)}
                     onExploreMarketplace={() => navigate('/')}
                     onSelectPropertyToInquire={(p) => handleInitInquiry(p)}
-                    onSwitchToRealtor={() => {
-                      if (!appState.currentUser) return;
-                      const updatedCurrentUser = {
-                        ...appState.currentUser,
-                        role: 'realtor' as const
-                      };
-                      if (!updatedCurrentUser.realtorProfile) {
-                        updatedCurrentUser.realtorProfile = {
-                          id: updatedCurrentUser.id,
-                          name: updatedCurrentUser.name,
-                          title: 'SFT Licensed Luxury Realtor',
-                          profileImage: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=400&h=400&q=80',
-                          coverImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
-                          city: 'Vancouver',
-                          phone: '+1 (604) 555-0100',
-                          whatsapp: '16045550100',
-                          bio: 'SFT independent licensed luxury real estate advisor.',
-                          experience: 5,
-                          languages: ['English'],
-                          specializations: ['Luxury Lofts', 'Waterfront Estates'],
-                          template: 'Minimal'
-                        };
-                      }
-                      
-                      setAppState((prev) => {
-                        const updatedUsers = prev.users.map((u) =>
-                          u.email.toLowerCase() === updatedCurrentUser.email.toLowerCase() ? updatedCurrentUser : u
-                        );
-                        const hasRealtor = prev.realtors.some((r) => r.id === updatedCurrentUser.id);
-                        const updatedRealtors = hasRealtor
-                          ? prev.realtors
-                          : [updatedCurrentUser.realtorProfile!, ...prev.realtors];
-                        return {
-                          ...prev,
-                          users: updatedUsers,
-                          realtors: updatedRealtors,
-                          currentUser: updatedCurrentUser
-                        };
-                      });
-                      
-                      navigate('/dashboard');
-                      showToast('Realtor Portal active! Access all specialized advisory controls.');
-                    }}
                   />
                 </motion.div>
               ) : (

@@ -48,37 +48,38 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
     if (isLogin) {
       // Look up user
       let found = state.users.find(u => u.email.toLowerCase() === email.toLowerCase());
-      
-      // Auto-assign realtor role if email is spreadbrnd@gmail.com or contains realtor-associated search terms
-      const isRealtorAssociated = role === 'realtor' || email.toLowerCase() === 'spreadbrnd@gmail.com' || email.toLowerCase().includes('realtor') || email.toLowerCase().includes('broker') || email.toLowerCase().includes('agent');
-      const targetRole = isRealtorAssociated ? 'realtor' : role;
 
       if (found) {
-        // Self-heal role mismatch if they are logging in via the Realtor tab or have a realtor email
-        if (isRealtorAssociated && found.role !== 'realtor') {
-          found.role = 'realtor';
-          if (!found.realtorProfile) {
-            found.realtorProfile = {
-              id: found.id,
-              name: found.name || email.split('@')[0].toUpperCase(),
-              title: 'Licensed Luxury Advisor',
-              profileImage: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80',
-              coverImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
-              city: 'Vancouver',
-              phone: '+1 (604) 555-0100',
-              whatsapp: '16045550100',
-              bio: 'Representing rare locations and structural design integrity.',
-              experience: 5,
-              languages: ['English'],
-              specializations: ['Modernist Villas'],
-              template: 'Minimal'
-            };
-          }
-          // Force-sync state database
+        // Respect the selected role in the tab instead of forcing or overruling
+        const sessionUser: User = {
+          ...found,
+          role: role
+        };
+
+        if (role === 'realtor' && !sessionUser.realtorProfile) {
+          sessionUser.realtorProfile = {
+            id: sessionUser.id,
+            name: sessionUser.name || email.split('@')[0].toUpperCase(),
+            title: 'Licensed Luxury Advisor',
+            profileImage: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80',
+            coverImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
+            city: 'Vancouver',
+            phone: '+1 (604) 555-0100',
+            whatsapp: '16045550100',
+            bio: 'Representing rare locations and structural design integrity.',
+            experience: 5,
+            languages: ['English'],
+            specializations: ['Modernist Villas'],
+            template: 'Minimal'
+          };
+          
+          // Sync database users as well to save the profile!
+          found.realtorProfile = sessionUser.realtorProfile;
           state.users = state.users.map(u => u.id === found!.id ? found! : u);
           localStorage.setItem('getsft_mvp_state', JSON.stringify(state));
         }
-        onAuthSuccess(found);
+
+        onAuthSuccess(sessionUser);
         onClose();
       } else {
         // Automatically create a mock user for convenience & flawless preview experience
@@ -86,10 +87,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
           id: email.split('@')[0],
           name: email.split('@')[0].toUpperCase(),
           email: email,
-          role: targetRole,
+          role: role,
           savedPropertyIds: []
         };
-        if (targetRole === 'realtor') {
+        if (role === 'realtor') {
           newUser.realtorProfile = {
             id: newUser.id,
             name: newUser.name,
@@ -122,19 +123,16 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
         return;
       }
 
-      const isRealtorAssociated = role === 'realtor' || email.toLowerCase() === 'spreadbrnd@gmail.com' || email.toLowerCase().includes('realtor') || email.toLowerCase().includes('broker') || email.toLowerCase().includes('agent');
-      const targetRole = isRealtorAssociated ? 'realtor' : role;
-
       const userId = name.toLowerCase().replace(/\s+/g, '-');
       const newUser: User = {
         id: userId,
         name: name,
         email: email,
-        role: targetRole,
+        role: role,
         savedPropertyIds: []
       };
 
-      if (targetRole === 'realtor') {
+      if (role === 'realtor') {
         const customRealtor: Realtor = {
           id: userId,
           name: name,
@@ -200,13 +198,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
             {/* Title Block */}
             <div className="mb-6">
               <span className="font-mono text-xs tracking-widest text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded uppercase">
-                {role === 'realtor' ? 'Independent Realtor Hub' : 'Premium Buyer Portal'}
+                {role === 'realtor' ? 'Realtor' : 'User'}
               </span>
               <h2 className="text-3xl font-display font-medium tracking-tight text-neutral-950 mt-2">
                 {isLogin ? 'Welcome Back' : 'Create Estate Account'}
               </h2>
               <p className="text-xs font-sans text-neutral-500 mt-2">
-                {isLogin ? 'Access your private and secure advisory environment' : 'Unlock full client-side Saved Lists, historic logs, and digital workspaces.'}
+                {isLogin ? 'Access your private and secure advisory environment' : 'Unlock full Saved Lists, historic logs, and digital workspaces.'}
               </p>
             </div>
 
@@ -222,7 +220,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                 }`}
                 id="select-buyer-role"
               >
-                ● Premium Buyer Portal
+                ● User
               </button>
               <button
                 type="button"
@@ -234,7 +232,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                 }`}
                 id="select-realtor-role"
               >
-                ■ Realtor Platform Hub
+                ■ Realtor
               </button>
             </div>
 

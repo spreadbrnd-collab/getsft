@@ -280,24 +280,6 @@ export default function RealtorProfilePage({
 
     return (
       <div className={`min-h-screen ${cfg.bgColor} ${cfg.textColor} ${cfg.fontClass} transition-colors duration-300`}>
-        {/* Navigation Indicator Overlay & Back btn */}
-        <div className={`py-4 px-6 flex items-center justify-between border-b-2 sticky top-0 z-45 shadow-md ${cfg.navClass}`}>
-          <div className="flex items-center gap-3">
-            <span className={`text-[10px] uppercase font-mono tracking-widest px-2.5 py-1 rounded font-bold ${cfg.badgeBg} ${cfg.badgeText}`}>
-              {tName} Estate Div.
-            </span>
-            {isPreview && <span className="text-xs uppercase font-mono opacity-80">Sandbox Active • {realtor.name}</span>}
-          </div>
-          {!isPreview && onBackToMarketplace && (
-            <button
-              onClick={onBackToMarketplace}
-              className={`px-4 py-1.5 text-xs font-mono uppercase font-bold tracking-wider rounded border transition-all cursor-pointer bg-white ${cfg.headlineColor} ${cfg.borderClass} hover:opacity-90`}
-            >
-              ← Back to main SFT Platform
-            </button>
-          )}
-        </div>
-
         {/* Hero Cover Header */}
         <div className={`relative h-[480px] w-full overflow-hidden bg-stone-900 border-b-4 ${cfg.borderClass}`}>
           <img
@@ -686,28 +668,6 @@ export default function RealtorProfilePage({
 
     return (
       <div className={`min-h-screen ${cfg.bgColor} ${cfg.textColor} font-mono p-4 md:p-8 space-y-8 select-none`}>
-        
-        {/* Navigation Bar Header (Brutalist blocks) */}
-        <div className={`border-x-4 border-t-4 border-b-6 border-black text-black p-4 flex flex-col md:flex-row items-center justify-between shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] ${cfg.navClass}`}>
-          <div className="flex items-center gap-3">
-            <span className={`bg-black text-white border-2 border-black text-xs uppercase font-extrabold tracking-widest px-3 py-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]`}>
-              {tName.toUpperCase()} POP SITE!
-            </span>
-            <span className="text-sm font-black hidden md:block">★ AGENT ID: #{realtor.id.toUpperCase()}</span>
-          </div>
-          <div className="flex items-center gap-2 mt-3 md:mt-0">
-            {isPreview && <span className="bg-white border-2 border-black text-[10px] px-2 py-0.5 uppercase tracking-widest font-black text-black">PREVIEW ACTIVE</span>}
-            {!isPreview && onBackToMarketplace && (
-              <button
-                onClick={onBackToMarketplace}
-                className="px-4 py-2 bg-white text-black text-xs font-black uppercase tracking-wider border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer"
-              >
-                ← GO TO MAIN GETSFT
-              </button>
-            )}
-          </div>
-        </div>
-
         {/* Hero Brutalist block */}
         <div className={`${cfg.cardBg} shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6 md:p-10 relative overflow-hidden`}>
           <div className="absolute top-2 right-2 animate-bounce">
@@ -1047,24 +1007,6 @@ export default function RealtorProfilePage({
         {/* Futuristic glowing grid elements in background */}
         <div className={`absolute inset-0 bg-[linear-gradient(to_right,#0c0823_1px,transparent_1px),linear-gradient(to_bottom,#0c0823_1px,transparent_1px)] bg-[size:3rem_3rem] pointer-events-none ${cfg.gridOpacity}`}></div>
         
-        {/* Neon Navigation indicator bar */}
-        <div className={`backdrop-blur-md text-white py-4 px-6 flex items-center justify-between border-b sticky top-0 z-45 ${cfg.navClass}`}>
-          <div className="flex items-center gap-3">
-            <span className={`bg-gradient-to-r ${cfg.buttonClass} text-[10px] font-mono uppercase tracking-widest px-3 py-1 font-bold animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.3)]`}>
-              {cfg.headingText}
-            </span>
-            {isPreview && <span className="text-[10px] font-mono opacity-60 uppercase">CONSOLE ACTIVE • PREVIEW</span>}
-          </div>
-          {!isPreview && onBackToMarketplace && (
-            <button
-              onClick={onBackToMarketplace}
-              className={`px-4 py-1.5 hover:text-black border text-xs font-mono uppercase font-bold tracking-wider rounded transition-all cursor-pointer bg-black text-white hover:bg-white`}
-            >
-              ← System Marketplace
-            </button>
-          )}
-        </div>
-
         {/* Hyper-Modern Neon Banner */}
         <div className={`relative h-[460px] w-full overflow-hidden bg-neutral-950 border-b ${cfg.borderClass} shadow-inner`}>
           <img

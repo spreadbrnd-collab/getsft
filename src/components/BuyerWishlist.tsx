@@ -10,7 +10,6 @@ interface BuyerWishlistProps {
   onRemoveFromWishlist: (propertyId: number) => void;
   onExploreMarketplace: () => void;
   onSelectPropertyToInquire: (property: Property) => void;
-  onSwitchToRealtor?: () => void;
 }
 
 export default function BuyerWishlist({
@@ -20,7 +19,6 @@ export default function BuyerWishlist({
   onRemoveFromWishlist,
   onExploreMarketplace,
   onSelectPropertyToInquire,
-  onSwitchToRealtor,
 }: BuyerWishlistProps) {
   // Filter properties in user's wishlist
   const wishlistedProperties = useMemo(() => {
@@ -51,16 +49,6 @@ export default function BuyerWishlist({
         </div>
 
         <div className="flex items-center gap-2.5 w-full md:w-auto justify-end">
-          {onSwitchToRealtor && (
-            <button
-              onClick={onSwitchToRealtor}
-              className="px-4 py-2.5 bg-neutral-900 hover:bg-black text-white text-xs font-mono uppercase tracking-wider rounded-full flex items-center gap-2 transition-all cursor-pointer font-bold border border-neutral-800"
-              id="buyer-upgrade-to-realtor-btn"
-            >
-              💼 Realtor Console
-            </button>
-          )}
-          
           <button 
             onClick={onExploreMarketplace}
             className="px-5 py-2.5 bg-black hover:bg-neutral-900 text-white text-xs font-mono uppercase tracking-wider rounded-full flex items-center gap-2 transition-all cursor-pointer font-bold"
