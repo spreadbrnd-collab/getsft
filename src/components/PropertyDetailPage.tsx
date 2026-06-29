@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, MapPin, BedDouble, Bath, Maximize2, Sparkles, Building2, 
   Phone, Mail, MessageSquare, BadgeCheck, Send, CheckCircle2, 
-  Compass, DollarSign, Calendar
+  Compass, DollarSign, Calendar, Check
 } from 'lucide-react';
 import { Property, Realtor, Inquiry, User } from '../types';
 import { INITIAL_PROPERTIES } from '../mockData';
@@ -141,17 +142,17 @@ const THEME_MAPPING: Record<string, {
 };
 
 const defaultTheme = {
-  bgColor: 'bg-slate-50/50',
+  bgColor: 'bg-[#FAF9F6]',
   textColor: 'text-neutral-900',
   fontClass: 'font-sans',
   borderClass: 'border-neutral-200',
-  cardClass: 'bg-white border border-neutral-150 rounded-[24px] shadow-3xs',
-  buttonClass: 'bg-teal-850 hover:bg-teal-900 text-white rounded-lg',
-  badgeClass: 'bg-teal-850 text-white',
-  headingColor: 'text-neutral-950',
-  titleColor: 'text-black',
+  cardClass: 'bg-white border border-neutral-200 rounded-[24px] shadow-[0_2px_12px_rgba(0,0,0,0.03)]',
+  buttonClass: 'bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl transition-all font-sans font-medium',
+  badgeClass: 'bg-neutral-900 text-white font-mono',
+  headingColor: 'text-neutral-950 font-display',
+  titleColor: 'text-neutral-950 font-display',
   mutedText: 'text-neutral-500',
-  subBg: 'bg-teal-50/15 border border-teal-100/60 rounded-[20px]',
+  subBg: 'bg-white border border-neutral-200 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.01)]',
 };
 
 interface PropertyDetailPageProps {
@@ -173,6 +174,7 @@ export default function PropertyDetailPage({
   isSaved,
   onToggleSaved
 }: PropertyDetailPageProps) {
+  const navigate = useNavigate();
   const [activeImage, setActiveImage] = useState(0);
   const [formName, setFormName] = useState(currentUser?.name || '');
   const [formEmail, setFormEmail] = useState(currentUser?.email || '');
@@ -202,9 +204,11 @@ export default function PropertyDetailPage({
 
   const pricePerSft = Math.round(property.price / property.area);
 
-  // Load and apply the realtor's chosen template theme
-  const themeName = (realtor && realtor.template) || 'Luxury';
-  const theme = THEME_MAPPING[themeName] || defaultTheme;
+  // Load and apply the realtor's chosen template theme conditionally
+  const isRealtorPath = typeof window !== 'undefined' && window.location.pathname.includes('/realtor/');
+  const cameFromGetSFT = typeof window !== 'undefined' && sessionStorage.getItem('getsft_came_from') === 'true';
+  const themeName = (isRealtorPath && !cameFromGetSFT && realtor && realtor.template) || 'Default';
+  const theme = (isRealtorPath && !cameFromGetSFT) ? (THEME_MAPPING[themeName] || defaultTheme) : defaultTheme;
 
   // Real-time page views tracking
   useEffect(() => {
@@ -422,54 +426,6 @@ export default function PropertyDetailPage({
             </div>
           </div>
 
-          {/* PROJECT EXCLUSIVE SPECIFICATIONS */}
-          {(property.reraId || property.possessionDate || property.projectSize || property.projectAreaCount || property.bhkConfig) && (
-            <div className="p-6 bg-teal-50/15 border border-teal-100/60 rounded-[20px] space-y-4 shadow-3xs">
-              <h3 className="font-display font-medium text-black text-sm uppercase tracking-wider text-teal-800">Project Specifications & Vitals</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-6 font-sans">
-                {property.reraId && (
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider block">RERA Status</span>
-                    <span className="text-xs font-semibold text-emerald-800 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Registered ({property.reraId})
-                    </span>
-                  </div>
-                )}
-                {property.possessionDate && (
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider block">Possession Starts</span>
-                    <span className="text-xs font-semibold text-neutral-900 block">{property.possessionDate}</span>
-                  </div>
-                )}
-                {property.projectSize && (
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider block">Total Project Size</span>
-                    <span className="text-xs font-semibold text-neutral-900 block">{property.projectSize}</span>
-                  </div>
-                )}
-                {property.projectAreaCount && (
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider block">Project Land Area</span>
-                    <span className="text-xs font-semibold text-neutral-900 block">{property.projectAreaCount}</span>
-                  </div>
-                )}
-                {property.bhkConfig && (
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider block">Apartment Configurations</span>
-                    <span className="text-xs font-semibold text-teal-700 block">{property.bhkConfig}</span>
-                  </div>
-                )}
-                {property.avgPricePerSft && (
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider block">Average Rate</span>
-                    <span className="text-xs font-semibold text-neutral-900 block">{property.avgPricePerSft}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* DYNAMIC FLOOR PLANS & PRICING */}
           {property.bhkConfig && (
             <div className="space-y-4 pt-4 border-t border-neutral-100">
@@ -495,13 +451,13 @@ export default function PropertyDetailPage({
                     status: property.possessionDate ? `Delivering ${property.possessionDate}` : 'Under Construction'
                   }
                 ].map((tier, idx) => (
-                  <div key={idx} className="p-5 bg-white border border-neutral-150 rounded-2xl flex flex-col justify-between hover:border-teal-700 transition-all duration-300 group shadow-3xs hover:shadow-2xs">
+                  <div key={idx} className="p-5 bg-white border border-neutral-150 rounded-2xl flex flex-col justify-between hover:border-neutral-900 transition-all duration-300 group shadow-3xs hover:shadow-2xs">
                     <div className="space-y-2">
                       <span className="text-[9px] font-mono bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded uppercase">
                         Config Architecture {idx + 1}
                       </span>
-                      <h4 className="text-sm font-semibold text-neutral-900 group-hover:text-teal-700 transition-colors">{tier.type}</h4>
-                      <p className="text-xs text-teal-700 font-bold">{tier.price}</p>
+                      <h4 className="text-sm font-semibold text-neutral-900 group-hover:text-neutral-900 transition-colors">{tier.type}</h4>
+                      <p className="text-xs text-neutral-950 font-bold">{tier.price}</p>
                       <div className="pt-2 text-[11px] text-neutral-500 font-mono space-y-1 border-t border-neutral-100 mt-2">
                         <div>📐 Sizes Range: {tier.size}</div>
                         <div>📅 Status: {tier.status}</div>
@@ -519,31 +475,31 @@ export default function PropertyDetailPage({
               <h3 className="font-display font-medium text-black text-base tracking-tight">Around This Project (Neighbourhood Guide)</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
                 {property.landmarks.school && (
-                  <div className="p-4 bg-teal-50/15 border border-teal-100/50 rounded-xl space-y-1">
+                  <div className="p-4 bg-[#fbf9f6] border border-[#ede7df] rounded-xl space-y-1">
                     <span className="text-[9px] font-mono uppercase tracking-wider text-neutral-400 block">🏫 Education Hub</span>
                     <p className="text-xs font-semibold text-neutral-800 leading-snug">{property.landmarks.school}</p>
                   </div>
                 )}
                 {property.landmarks.metro && (
-                  <div className="p-4 bg-teal-50/15 border border-teal-100/50 rounded-xl space-y-1">
+                  <div className="p-4 bg-[#fbf9f6] border border-[#ede7df] rounded-xl space-y-1">
                     <span className="text-[9px] font-mono uppercase tracking-wider text-neutral-400 block">🚇 Rapid Transit</span>
                     <p className="text-xs font-semibold text-neutral-800 leading-snug">{property.landmarks.metro}</p>
                   </div>
                 )}
                 {property.landmarks.hospital && (
-                  <div className="p-4 bg-teal-50/15 border border-teal-100/50 rounded-xl space-y-1">
+                  <div className="p-4 bg-[#fbf9f6] border border-[#ede7df] rounded-xl space-y-1">
                     <span className="text-[9px] font-mono uppercase tracking-wider text-neutral-400 block">🏥 Healthcare</span>
                     <p className="text-xs font-semibold text-neutral-800 leading-snug">{property.landmarks.hospital}</p>
                   </div>
                 )}
                 {property.landmarks.mall && (
-                  <div className="p-4 bg-teal-50/15 border border-teal-100/50 rounded-xl space-y-1">
+                  <div className="p-4 bg-[#fbf9f6] border border-[#ede7df] rounded-xl space-y-1">
                     <span className="text-[9px] font-mono uppercase tracking-wider text-neutral-400 block">🛍️ Shopping & Retail</span>
                     <p className="text-xs font-semibold text-neutral-800 leading-snug">{property.landmarks.mall}</p>
                   </div>
                 )}
                 {property.landmarks.restaurant && (
-                  <div className="p-4 bg-teal-50/15 border border-teal-100/50 rounded-xl space-y-1">
+                  <div className="p-4 bg-[#fbf9f6] border border-[#ede7df] rounded-xl space-y-1">
                     <span className="text-[9px] font-mono uppercase tracking-wider text-neutral-400 block">☕ Food & Coffee</span>
                     <p className="text-xs font-semibold text-neutral-800 leading-snug">{property.landmarks.restaurant}</p>
                   </div>
@@ -567,16 +523,16 @@ export default function PropertyDetailPage({
             </div>
           )}
 
-          {/* AMENITIES WITH PREMIUM ICONS / LABELS */}
-          <div className="space-y-4 pt-4 border-t border-neutral-100">
-            <h2 className="text-xl font-display font-medium text-black">Project Premium Features</h2>
+          {/* AMENITIES SECTION */}
+          <div className="space-y-4 pt-4 border-t border-neutral-100" id="property-amenities-section">
+            <h2 className="text-xl font-display font-medium text-black">Amenities</h2>
             <div className="flex flex-wrap gap-2.5">
               {property.amenities.map((amenity, idx) => (
                 <span 
                   key={idx} 
                   className="flex items-center gap-2 px-4 py-2 bg-neutral-50 text-neutral-700 border border-neutral-150 rounded-full text-xs font-sans hover:border-[#c8a27b] transition-colors"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-[#c8a27b]" />
+                  <Check className="w-3.5 h-3.5 text-[#c8a27b]" />
                   <span>{amenity}</span>
                 </span>
               ))}
@@ -625,303 +581,305 @@ export default function PropertyDetailPage({
           </div>
 
           {/* ADVANCED HELPFUL TOOLS / CALCULATOR SUITE */}
-          <div className="p-6 bg-[#ffffff] border border-neutral-150 rounded-[28px] space-y-5" id="helpful-tools-suite">
-            <div>
-              <span className="text-[10px] uppercase font-mono tracking-wider text-teal-800 font-bold">✦ Dynamic Client Advisory</span>
-              <h3 className="text-lg font-display font-medium text-neutral-900 mt-0.5">Helpful Calculators & Estimators</h3>
-              <p className="text-xs text-neutral-500 font-sans">Verify loan thresholds, eligibility parameters, and comprehensive acquisition cost breakdowns.</p>
-            </div>
+          {property.listingIntent !== 'Rent' && (
+            <div className="p-7 bg-white border border-neutral-200 rounded-[32px] space-y-6 shadow-[0_4px_24px_rgba(0,0,0,0.015)]" id="helpful-tools-suite">
+              <div>
+                <span className="text-[10px] uppercase font-mono tracking-widest text-neutral-400 font-bold block">✦ Dynamic Client Advisory</span>
+                <h3 className="text-xl font-display font-medium text-neutral-900 tracking-tight mt-1">Acquisition & Leverage Diagnostics</h3>
+                <p className="text-xs text-neutral-500 font-sans leading-relaxed mt-1">Verify capital requirements, debt threshold ratios, and localized tax structures instantly.</p>
+              </div>
 
-            {/* TAB SELECTOR */}
-            <div className="flex flex-wrap gap-1 p-1 bg-neutral-100 rounded-xl">
-              {(['emi', 'affordability', 'eligibility', 'breakdown'] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveToolTab(tab)}
-                  className={`flex-1 py-2 px-1 text-center rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all font-bold ${
-                    activeToolTab === tab 
-                      ? 'bg-black text-white shadow-xs' 
-                      : 'text-neutral-500 hover:text-neutral-900'
-                  }`}
-                >
-                  {tab === 'emi' ? 'EMI Cal' : tab === 'affordability' ? 'Affordability' : tab === 'eligibility' ? 'Eligibility' : 'Price Break'}
-                </button>
-              ))}
-            </div>
+              {/* TAB SELECTOR */}
+              <div className="flex flex-wrap gap-1 p-1 bg-[#F5F4F0] border border-neutral-200/50 rounded-2xl">
+                {(['emi', 'affordability', 'eligibility', 'breakdown'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActiveToolTab(tab)}
+                    className={`flex-1 py-2 px-1 text-center rounded-xl text-[10px] font-mono uppercase tracking-wider transition-all font-bold ${
+                      activeToolTab === tab 
+                        ? 'bg-neutral-900 text-white shadow-[0_2px_4px_rgba(0,0,0,0.08)]' 
+                        : 'text-neutral-500 hover:text-neutral-900'
+                    }`}
+                  >
+                    {tab === 'emi' ? 'EMI Calculator' : tab === 'affordability' ? 'Affordability' : tab === 'eligibility' ? 'Eligibility' : 'Cost Breakdown'}
+                  </button>
+                ))}
+              </div>
 
-            {/* TAB PANELS CONTAINER */}
-            <div className="text-xs font-sans space-y-4 pt-1">
-              {activeToolTab === 'emi' && (() => {
-                // Calculate Dynamic EMI
-                const emiPrincipal = property.price * (1 - emiDownPaymentPct / 100);
-                const emiMonthlyRate = (emiInterestRate / 12) / 100;
-                const emiTotalMonths = emiTenureYrs * 12;
-                let emiResult = 0;
-                if (emiMonthlyRate > 0) {
-                  emiResult = emiPrincipal * emiMonthlyRate * Math.pow(1 + emiMonthlyRate, emiTotalMonths) / (Math.pow(1 + emiMonthlyRate, emiTotalMonths) - 1);
-                } else {
-                  emiResult = emiPrincipal / emiTotalMonths;
-                }
+              {/* TAB PANELS CONTAINER */}
+              <div className="text-xs font-sans space-y-5 pt-1">
+                {activeToolTab === 'emi' && (() => {
+                  // Calculate Dynamic EMI
+                  const emiPrincipal = property.price * (1 - emiDownPaymentPct / 100);
+                  const emiMonthlyRate = (emiInterestRate / 12) / 100;
+                  const emiTotalMonths = emiTenureYrs * 12;
+                  let emiResult = 0;
+                  if (emiMonthlyRate > 0) {
+                    emiResult = emiPrincipal * emiMonthlyRate * Math.pow(1 + emiMonthlyRate, emiTotalMonths) / (Math.pow(1 + emiMonthlyRate, emiTotalMonths) - 1);
+                  } else {
+                    emiResult = emiPrincipal / emiTotalMonths;
+                  }
 
-                return (
-                  <div className="space-y-4 animate-fade-in">
-                    <div className="bg-[#fafaee] p-4 rounded-2xl border border-[#edece0] flex items-center justify-between">
-                      <div>
-                        <span className="block text-[11px] font-mono uppercase text-neutral-500 font-bold">Estimated Monthly EMI</span>
-                        <span className="text-lg sm:text-xl font-display font-semibold text-neutral-800 mt-0.5 block">
-                          {isINR ? `₹ ${(emiResult / 100000).toFixed(2)} Lacs` : `$${Math.round(emiResult).toLocaleString()}`}
-                        </span>
+                  return (
+                    <div className="space-y-5 animate-fade-in">
+                      <div className="bg-[#FAF9F6] p-5 rounded-2xl border border-neutral-200/70 flex items-center justify-between">
+                        <div>
+                          <span className="block text-[10px] font-mono uppercase tracking-wider text-neutral-400 font-bold">Estimated Monthly Debt Service</span>
+                          <span className="text-2xl font-display font-semibold text-neutral-950 mt-1 block tracking-tight">
+                            {isINR ? `₹ ${(emiResult / 100000).toFixed(2)} Lacs` : `$${Math.round(emiResult).toLocaleString()}`}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="block text-[9px] font-mono uppercase tracking-wider text-neutral-400 font-bold">Downpayment Leverage</span>
+                          <span className="text-xs font-bold text-neutral-800 block mt-1 tracking-tight">
+                            {isINR ? `₹ ${(property.price * emiDownPaymentPct / 100 / 10000000).toFixed(2)} Cr` : `$${(property.price * emiDownPaymentPct / 100).toLocaleString()}`} ({emiDownPaymentPct}%)
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="block text-[9px] font-mono uppercase tracking-wider text-teal-800 font-bold">Downpayment Paid</span>
-                        <span className="text-xs font-bold text-neutral-700 block mt-1">
-                          {isINR ? `₹ ${(property.price * emiDownPaymentPct / 100 / 10000000).toFixed(2)} Cr` : `$${(property.price * emiDownPaymentPct / 100).toLocaleString()}`} ({emiDownPaymentPct}%)
-                        </span>
+
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex justify-between text-[11px] mb-1.5">
+                            <span className="text-neutral-500 font-medium">LTV / Equity Split</span>
+                            <span className="font-mono text-neutral-900 font-bold">{emiDownPaymentPct}% Down / {100 - emiDownPaymentPct}% Loan</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="10" 
+                            max="80" 
+                            step="5"
+                            value={emiDownPaymentPct} 
+                            onChange={(e) => setEmiDownPaymentPct(Number(e.target.value))} 
+                            className="w-full h-1 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-neutral-900" 
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between text-[11px] mb-1.5">
+                            <span className="text-neutral-500 font-medium">Weighted Annual Interest Rate</span>
+                            <span className="font-mono text-neutral-900 font-bold">{emiInterestRate}%</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="5" 
+                            max="20" 
+                            step="0.1" 
+                            value={emiInterestRate} 
+                            onChange={(e) => setEmiInterestRate(Number(e.target.value))} 
+                            className="w-full h-1 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-neutral-900" 
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between text-[11px] mb-1.5">
+                            <span className="text-neutral-500 font-medium">Amortization Period</span>
+                            <span className="font-mono text-neutral-900 font-bold">{emiTenureYrs} Years</span>
+                          </div>
+                          <div className="flex gap-2">
+                            {[10, 15, 20, 25, 30].map((yr) => (
+                              <button
+                                key={yr}
+                                type="button"
+                                onClick={() => setEmiTenureYrs(yr)}
+                                className={`flex-1 py-1.5 text-center rounded-xl text-[10px] font-mono border transition-all ${
+                                  emiTenureYrs === yr 
+                                    ? 'bg-neutral-950 border-neutral-950 text-white font-bold' 
+                                    : 'bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400 font-medium'
+                                }`}
+                              >
+                                {yr} Yr
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  );
+                })()}
 
-                    <div className="space-y-3.5">
-                      <div>
-                        <div className="flex justify-between text-[11px] mb-1">
-                          <span className="text-neutral-500 font-bold">Down Payment Percent</span>
-                          <span className="font-mono text-teal-800 font-bold">{emiDownPaymentPct}%</span>
+                {activeToolTab === 'affordability' && (() => {
+                  const maxHousingAllocation = (affMonthlyIncome * 0.40) - affMonthlyExpenses;
+                  const monthlyIntAff = (8.5 / 12) / 100;
+                  const totalMthsAff = 240; // 20 years fixed
+                  let calculatedLoan = 0;
+                  if (maxHousingAllocation > 0 && monthlyIntAff > 0) {
+                    calculatedLoan = maxHousingAllocation * (Math.pow(1 + monthlyIntAff, totalMthsAff) - 1) / (monthlyIntAff * Math.pow(1 + monthlyIntAff, totalMthsAff));
+                  }
+                  const calculatedBudget = calculatedLoan + (affMonthlyIncome * 4); // loan + estimated downpayment backup
+
+                  return (
+                    <div className="space-y-5 animate-fade-in font-sans">
+                      <div className="bg-[#FAF9F6] p-5 rounded-2xl border border-neutral-200/70 grid grid-cols-2 gap-4">
+                        <div>
+                          <span className="block text-[10px] font-mono uppercase text-neutral-400 font-bold">Suggested Cap Budget</span>
+                          <span className="text-xl font-display font-semibold text-neutral-950 tracking-tight mt-1 block">
+                            {isINR ? `₹ ${(calculatedBudget / 10000000).toFixed(2)} Cr` : `$${Math.round(calculatedBudget).toLocaleString()}`}
+                          </span>
                         </div>
-                        <input 
-                          type="range" 
-                          min="10" 
-                          max="80" 
-                          step="5"
-                          value={emiDownPaymentPct} 
-                          onChange={(e) => setEmiDownPaymentPct(Number(e.target.value))} 
-                          className="w-full accent-teal-800 cursor-pointer" 
-                        />
+                        <div>
+                          <span className="block text-[10px] font-mono uppercase text-neutral-400 font-bold">Est. Leverage Threshold</span>
+                          <span className="text-xl font-display font-semibold text-neutral-950 tracking-tight mt-1 block">
+                            {isINR ? `₹ ${(calculatedLoan / 10000000).toFixed(2)} Cr` : `$${Math.round(calculatedLoan).toLocaleString()}`}
+                          </span>
+                        </div>
                       </div>
 
-                      <div>
-                        <div className="flex justify-between text-[11px] mb-1">
-                          <span className="text-neutral-500 font-bold">Annual Interest Rate</span>
-                          <span className="font-mono text-teal-800 font-bold">{emiInterestRate}%</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-neutral-400 font-bold mb-1.5">Monthly Active Surplus</label>
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-2.5 text-neutral-400 font-semibold">{isINR ? '₹' : '$'}</span>
+                            <input
+                              type="number"
+                              value={affMonthlyIncome}
+                              onChange={(e) => setAffMonthlyIncome(Number(e.target.value))}
+                              className="w-full pl-8 pr-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-sans outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 shadow-sm"
+                            />
+                          </div>
                         </div>
-                        <input 
-                          type="range" 
-                          min="5" 
-                          max="20" 
-                          step="0.1" 
-                          value={emiInterestRate} 
-                          onChange={(e) => setEmiInterestRate(Number(e.target.value))} 
-                          className="w-full accent-neutral-800 cursor-pointer" 
-                        />
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between text-[11px] mb-1">
-                          <span className="text-neutral-500 font-bold">Loan Tenure Period</span>
-                          <span className="font-mono text-[#b38e68] font-bold">{emiTenureYrs} Years</span>
-                        </div>
-                        <div className="flex gap-2">
-                          {[10, 15, 20, 25, 30].map((yr) => (
-                            <button
-                              key={yr}
-                              type="button"
-                              onClick={() => setEmiTenureYrs(yr)}
-                              className={`flex-1 py-1 text-center rounded-lg text-[10px] font-mono border transition-all ${
-                                emiTenureYrs === yr 
-                                  ? 'bg-[#b38e68] border-[#b38e68] text-white' 
-                                  : 'bg-white border-neutral-200 text-neutral-600 hover:border-black'
-                              }`}
-                            >
-                              {yr} Yr
-                            </button>
-                          ))}
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-neutral-400 font-bold mb-1.5">Ancillary Debt Obligations</label>
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-2.5 text-neutral-400 font-semibold">{isINR ? '₹' : '$'}</span>
+                            <input
+                              type="number"
+                              value={affMonthlyExpenses}
+                              onChange={(e) => setAffMonthlyExpenses(Number(e.target.value))}
+                              className="w-full pl-8 pr-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-sans outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 shadow-sm"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })()}
+                  );
+                })()}
 
-              {activeToolTab === 'affordability' && (() => {
-                const maxHousingAllocation = (affMonthlyIncome * 0.40) - affMonthlyExpenses;
-                const monthlyIntAff = (8.5 / 12) / 100;
-                const totalMthsAff = 240; // 20 years fixed
-                let calculatedLoan = 0;
-                if (maxHousingAllocation > 0 && monthlyIntAff > 0) {
-                  calculatedLoan = maxHousingAllocation * (Math.pow(1 + monthlyIntAff, totalMthsAff) - 1) / (monthlyIntAff * Math.pow(1 + monthlyIntAff, totalMthsAff));
-                }
-                const calculatedBudget = calculatedLoan + (affMonthlyIncome * 4); // loan + estimated downpayment backup
+                {activeToolTab === 'eligibility' && (() => {
+                  const maxEMIAllowed = eligMonthlyIncome * 0.50;
+                  const monthlyIntElig = (8.2 / 12) / 100;
+                  const calculatedLoanLimit = maxEMIAllowed * (Math.pow(1 + monthlyIntElig, 240) - 1) / (monthlyIntElig * Math.pow(1 + monthlyIntElig, 240));
 
-                return (
-                  <div className="space-y-4 animate-fade-in font-sans">
-                    <div className="bg-[#f0f8ff] p-4 rounded-xl border border-[#d1e6fa] grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="block text-[10px] font-mono uppercase text-neutral-500 font-bold">Suggested Maximum Budget</span>
-                        <span className="text-base sm:text-lg font-display font-semibold text-neutral-800 tracking-tight mt-0.5 block">
-                          {isINR ? `₹ ${(calculatedBudget / 10000000).toFixed(2)} Cr` : `$${Math.round(calculatedBudget).toLocaleString()}`}
-                        </span>
+                  return (
+                    <div className="space-y-5 animate-fade-in">
+                      <div className="bg-[#FAF9F6] p-5 rounded-2xl border border-neutral-200/70 flex items-center justify-between">
+                        <div>
+                          <span className="block text-[10px] font-mono uppercase text-neutral-400 font-bold">Lending Threshold Limit</span>
+                          <span className="text-xl font-display font-semibold text-neutral-950 mt-1 block tracking-tight">
+                            {isINR ? `₹ ${(calculatedLoanLimit / 10000000).toFixed(2)} Cr` : `$${Math.round(calculatedLoanLimit).toLocaleString()}`}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="block text-[9px] font-mono uppercase tracking-wider text-neutral-400 font-bold">Max Monthly Capacity</span>
+                          <span className="text-xs font-bold text-neutral-800 block mt-1 tracking-tight">
+                            {isINR ? `₹ ${(maxEMIAllowed / 100000).toFixed(2)} Lacs/mo` : `$${Math.round(maxEMIAllowed).toLocaleString()}`}
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <span className="block text-[10px] font-mono uppercase text-neutral-500 font-bold">Est. Eligible Home Loan</span>
-                        <span className="text-base sm:text-lg font-display font-semibold text-neutral-800 tracking-tight mt-0.5 block">
-                          {isINR ? `₹ ${(calculatedLoan / 10000000).toFixed(2)} Cr` : `$${Math.round(calculatedLoan).toLocaleString()}`}
-                        </span>
-                      </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[10px] font-mono uppercase text-neutral-400 mb-1">Monthly Active Income</label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-2.5 text-neutral-400 font-semibold">{isINR ? '₹' : '$'}</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-neutral-400 font-bold mb-1.5">Net Monthly Inflow</label>
                           <input
                             type="number"
-                            value={affMonthlyIncome}
-                            onChange={(e) => setAffMonthlyIncome(Number(e.target.value))}
-                            className="w-full pl-7 pr-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-xs"
+                            value={eligMonthlyIncome}
+                            onChange={(e) => setEligMonthlyIncome(Number(e.target.value))}
+                            className="w-full px-3.5 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-sans outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 shadow-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono uppercase text-neutral-400 font-bold mb-1.5">Applicant Age Limit</label>
+                          <input
+                            type="number"
+                            value={eligAge}
+                            onChange={(e) => setEligAge(Number(e.target.value))}
+                            className="w-full px-3.5 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-sans outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 shadow-sm"
                           />
                         </div>
                       </div>
-                      <div>
-                        <label className="block text-[10px] font-mono uppercase text-neutral-400 mb-1">Other Existing Debt EMI</label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-2.5 text-neutral-400 font-semibold">{isINR ? '₹' : '$'}</span>
-                          <input
-                            type="number"
-                            value={affMonthlyExpenses}
-                            onChange={(e) => setAffMonthlyExpenses(Number(e.target.value))}
-                            className="w-full pl-7 pr-3 py-1.5 bg-neutral-50 border border-neutral-200 rounded-lg text-xs"
-                          />
-                        </div>
-                      </div>
                     </div>
-                  </div>
-                );
-              })()}
+                  );
+                })()}
 
-              {activeToolTab === 'eligibility' && (() => {
-                const maxEMIAllowed = eligMonthlyIncome * 0.50;
-                const monthlyIntElig = (8.2 / 12) / 100;
-                const calculatedLoanLimit = maxEMIAllowed * (Math.pow(1 + monthlyIntElig, 240) - 1) / (monthlyIntElig * Math.pow(1 + monthlyIntElig, 240));
+                {activeToolTab === 'breakdown' && (() => {
+                  // Detailed Breakdown calculations
+                  const baseVal = property.price;
+                  const stampDuty = isINR ? Math.round(baseVal * 0.06) : Math.round(baseVal * 0.03); 
+                  const regFees = isINR ? Math.round(baseVal * 0.01) : Math.round(baseVal * 0.005);
+                  const gstTax = isINR ? Math.round(baseVal * 0.05) : Math.round(baseVal * 0.012);
+                  const devServiceInfrastructure = isINR ? 850000 : 25000;
+                  const totalEscrowAcquisition = baseVal + stampDuty + regFees + gstTax + devServiceInfrastructure;
 
-                return (
-                  <div className="space-y-4 animate-fade-in">
-                    <div className="bg-[#fcf7f2] p-4 rounded-xl border border-[#ebdccb] flex items-center justify-between">
-                      <div>
-                        <span className="block text-[10px] font-mono uppercase text-neutral-500 font-bold">Estimated Home Loan Limit</span>
-                        <span className="text-lg font-display font-semibold text-neutral-800 mt-0.5 block">
-                          {isINR ? `₹ ${(calculatedLoanLimit / 10000000).toFixed(2)} Cr` : `$${Math.round(calculatedLoanLimit).toLocaleString()}`}
-                        </span>
+                  return (
+                    <div className="space-y-5 animate-fade-in font-sans">
+                      <div className="border border-neutral-200 rounded-2xl overflow-hidden text-neutral-800 bg-white shadow-xs">
+                        <div className="p-3.5 bg-neutral-50 border-b border-neutral-200 flex justify-between font-mono text-[9px] uppercase tracking-wider text-neutral-500 font-bold">
+                          <span>Component Breakdown</span>
+                          <span>Projected Capital Outlay</span>
+                        </div>
+                        <div className="p-4 space-y-3.5 text-neutral-600">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-medium text-neutral-500">Base Listing Price</span>
+                            <span className="font-mono text-neutral-900 font-bold">
+                              {isINR ? `₹ ${(baseVal / 10000000).toFixed(2)} Cr` : `$${baseVal.toLocaleString()}`}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-medium text-neutral-500">Government Stamp Duty {isINR ? '(6% flat)' : '(3% flat)'}</span>
+                            <span className="font-mono text-neutral-900">
+                              {isINR ? `₹ ${(stampDuty / 100000).toFixed(2)} Lacs` : `$${stampDuty.toLocaleString()}`}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-medium text-neutral-500">Title Registration Fees {isINR ? '(1%)' : '(0.5%)'}</span>
+                            <span className="font-mono text-neutral-900">
+                              {isINR ? `₹ ${(regFees / 100000).toFixed(2)} Lacs` : `$${regFees.toLocaleString()}`}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-medium text-neutral-500">Taxes & Unified GST Surcharge</span>
+                            <span className="font-mono text-neutral-900">
+                              {isINR ? `₹ ${(gstTax / 100000).toFixed(2)} Lacs` : `$${gstTax.toLocaleString()}`}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-medium text-neutral-500">Ancillary Infrastructure & Amenities Levy</span>
+                            <span className="font-mono text-neutral-900">
+                              {isINR ? `₹ ${(devServiceInfrastructure / 100000).toFixed(2)} Lacs` : `$${devServiceInfrastructure.toLocaleString()}`}
+                            </span>
+                          </div>
+                          <div className="border-t border-neutral-100 pt-3.5 flex justify-between items-center text-xs font-bold text-neutral-950 uppercase">
+                            <span>Total Acquisition Escrow</span>
+                            <span className="font-mono text-neutral-950 text-sm">
+                              {isINR ? `₹ ${(totalEscrowAcquisition / 10000000).toFixed(3)} Cr` : `$${totalEscrowAcquisition.toLocaleString()}`}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="block text-[9px] font-mono uppercase tracking-wider text-neutral-500">Max Bank EMI Allowed</span>
-                        <span className="text-xs font-bold text-teal-800 block mt-0.5">
-                          {isINR ? `₹ ${(maxEMIAllowed / 100000).toFixed(2)} Lacs/mo` : `$${Math.round(maxEMIAllowed).toLocaleString()}`}
-                        </span>
-                      </div>
+                      <p className="text-[10px] leading-relaxed text-neutral-500 bg-[#FAF9F6] p-4 rounded-xl border border-neutral-200/50 font-mono italic">
+                        ⚠ Advisory Scope: Totals exclude localized monthly maintenance fees, floor-rise premium adjustments, and specific orientation adjustments. Direct legal consultation advised.
+                      </p>
                     </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[10px] font-mono uppercase text-neutral-400 mb-1">In-Hand Monthly Salary</label>
-                        <input
-                          type="number"
-                          value={eligMonthlyIncome}
-                          onChange={(e) => setEligMonthlyIncome(Number(e.target.value))}
-                          className="w-full px-3 py-1.5 bg-neutral-50 border border-neutral-200 rounded-lg font-mono text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-mono uppercase text-neutral-400 mb-1">Primary Applicant Age</label>
-                        <input
-                          type="number"
-                          value={eligAge}
-                          onChange={(e) => setEligAge(Number(e.target.value))}
-                          className="w-full px-3 py-1.5 bg-neutral-50 border border-neutral-200 rounded-lg font-mono text-xs"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {activeToolTab === 'breakdown' && (() => {
-                // Detailed Breakdown calculations
-                const baseVal = property.price;
-                const stampDuty = isINR ? Math.round(baseVal * 0.06) : Math.round(baseVal * 0.03); 
-                const regFees = isINR ? Math.round(baseVal * 0.01) : Math.round(baseVal * 0.005);
-                const gstTax = isINR ? Math.round(baseVal * 0.05) : Math.round(baseVal * 0.012);
-                const devServiceInfrastructure = isINR ? 850000 : 25000;
-                const totalEscrowAcquisition = baseVal + stampDuty + regFees + gstTax + devServiceInfrastructure;
-
-                return (
-                  <div className="space-y-4 animate-fade-in font-sans">
-                    <div className="border border-neutral-150 rounded-2xl overflow-hidden text-neutral-800">
-                      <div className="p-3 bg-neutral-50 border-b border-neutral-150 flex justify-between font-bold text-neutral-900">
-                        <span>Fee Item Components</span>
-                        <span>Estimated Cost Outlay</span>
-                      </div>
-                      <div className="p-3 space-y-2 text-neutral-600">
-                        <div className="flex justify-between items-center text-[11px]">
-                          <span>Base Property Value / Price</span>
-                          <span className="font-mono text-neutral-800 font-bold">
-                            {isINR ? `₹ ${(baseVal / 10000000).toFixed(2)} Cr` : `$${baseVal.toLocaleString()}`}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-[11px]">
-                          <span>Stamp Duty {isINR ? '(6% of price)' : '(3% of price)'}</span>
-                          <span className="font-mono text-neutral-800">
-                            {isINR ? `₹ ${(stampDuty / 100000).toFixed(2)} Lacs` : `$${stampDuty.toLocaleString()}`}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-[11px]">
-                          <span>Registration Charges {isINR ? '(1%)' : '(0.5%)'}</span>
-                          <span className="font-mono text-neutral-800">
-                            {isINR ? `₹ ${(regFees / 100000).toFixed(2)} Lacs` : `$${regFees.toLocaleString()}`}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-[11px]">
-                          <span>Goods & Services GST / Taxes</span>
-                          <span className="font-mono text-neutral-800">
-                            {isINR ? `₹ ${(gstTax / 100000).toFixed(2)} Lacs` : `$${gstTax.toLocaleString()}`}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-[11px]">
-                          <span>Society Infrastructure & Amenities Fee</span>
-                          <span className="font-mono text-neutral-800">
-                            {isINR ? `₹ ${(devServiceInfrastructure / 100000).toFixed(2)} Lacs` : `$${devServiceInfrastructure.toLocaleString()}`}
-                          </span>
-                        </div>
-                        <div className="border-t border-dashed border-neutral-150 pt-2.5 flex justify-between items-center text-xs font-bold text-neutral-900 uppercase">
-                          <span>Total Capital Outlay</span>
-                          <span className="font-mono text-[#b38e68] text-sm">
-                            {isINR ? `₹ ${(totalEscrowAcquisition / 10000000).toFixed(3)} Cr` : `$${totalEscrowAcquisition.toLocaleString()}`}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-[10px] leading-relaxed text-teal-850 bg-teal-50 p-3 rounded-lg border border-teal-100 font-mono italic">
-                      ⚠ Advisory Check: Price excludes maintenance, floor rise cost, stamp duty, registration, GST etc. True cost will vary based on floor rise level and specific block orientation.
-                    </p>
-                  </div>
-                );
-              })()}
+                  );
+                })()}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* SIDE-BY-SIDE PROPERTY COMPARISON SECTION */}
-          <div className="p-6 bg-[#ffffff] border border-neutral-150 rounded-[28px] space-y-4" id="compare-properties-suite">
+          <div className="p-7 bg-white border border-neutral-200 rounded-[32px] space-y-6 shadow-[0_4px_24px_rgba(0,0,0,0.015)]" id="compare-properties-suite">
             <div>
-              <span className="text-[10px] uppercase font-mono tracking-wider text-teal-800 font-bold">✦ Side-by-Side Analysis</span>
-              <h3 className="text-lg font-display font-medium text-neutral-900 mt-0.5">Compare With Similar Projects</h3>
-              <p className="text-xs text-neutral-500 font-sans">Compare key specifications, builder warranty parameters, and pricing matrices instantly.</p>
+              <span className="text-[10px] uppercase font-mono tracking-widest text-neutral-400 font-bold block">✦ Side-by-Side Analysis</span>
+              <h3 className="text-xl font-display font-medium text-neutral-900 tracking-tight mt-1">Direct Market Comparison</h3>
+              <p className="text-xs text-neutral-500 font-sans leading-relaxed mt-1">Compare physical attributes, possession timelines, and localized developer ratings instantly.</p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2 items-center justify-between">
-              <span className="text-xs text-neutral-500 font-bold shrink-0">Select Competitor Target:</span>
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-neutral-50 p-3 rounded-2xl border border-neutral-200/50">
+              <span className="text-xs text-neutral-600 font-semibold shrink-0">Select Target Reference:</span>
               <select
                 value={compareId}
                 onChange={(e) => setCompareId(Number(e.target.value))}
-                className="w-full sm:w-auto text-xs px-2.5 py-1.5 border border-neutral-200 rounded-lg bg-neutral-50 text-neutral-800 outline-none focus:border-black"
+                className="w-full sm:w-auto text-xs px-3 py-1.5 border border-neutral-200 rounded-xl bg-white text-neutral-850 outline-none focus:border-neutral-900 shadow-sm cursor-pointer font-sans"
               >
                 {otherProperties.map((op) => (
                   <option key={op.property_id} value={op.property_id}>
@@ -936,109 +894,61 @@ export default function PropertyDetailPage({
               if (!comp) return null;
 
               return (
-                <div className="border border-neutral-150 rounded-2xl overflow-hidden font-sans text-xs">
-                  <div className="grid grid-cols-3 bg-neutral-100 text-[10px] font-mono uppercase tracking-wide text-neutral-500 text-center font-bold p-2.5 border-b border-neutral-150">
-                    <div>Specification</div>
-                    <div>This Project</div>
+                <div className="border border-neutral-200 rounded-2xl overflow-hidden bg-white shadow-xs">
+                  <div className="grid grid-cols-3 bg-neutral-50 text-[9px] font-mono uppercase tracking-wider text-neutral-500 text-center font-bold p-3.5 border-b border-neutral-200">
+                    <div className="text-left">Metrics</div>
+                    <div>This Subject</div>
                     <div>{comp.title.split(' ')[0]} {comp.title.split(' ')[1] || ''}</div>
                   </div>
 
-                  <div className="divide-y divide-neutral-150">
-                    <div className="grid grid-cols-3 p-2.5 items-center text-center">
-                      <div className="font-semibold text-neutral-500 text-[11px] text-left">Market Price</div>
-                      <div className="font-bold text-teal-800 font-mono">
+                  <div className="divide-y divide-neutral-100 text-xs">
+                    <div className="grid grid-cols-3 p-3.5 items-center text-center">
+                      <div className="font-semibold text-neutral-500 text-[11px] text-left">Market Valuation</div>
+                      <div className="font-bold text-neutral-950 font-sans">
                         {isINR ? `₹ ${(property.price / 10000000).toFixed(2)} Cr` : `$${(property.price).toLocaleString()}`}
                       </div>
-                      <div className="font-mono text-neutral-700">
+                      <div className="font-mono text-neutral-600">
                         {comp.city?.toLowerCase() === 'hyderabad' ? `₹ ${(comp.price / 10000000).toFixed(2)} Cr` : `$${(comp.price).toLocaleString()}`}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 p-2.5 items-center text-center">
-                      <div className="font-semibold text-neutral-500 text-[11px] text-left">Avg. SFT Price</div>
-                      <div className="font-mono text-neutral-800 font-bold">
+                    <div className="grid grid-cols-3 p-3.5 items-center text-center">
+                      <div className="font-semibold text-neutral-500 text-[11px] text-left">Capital Area Price</div>
+                      <div className="font-mono text-neutral-900 font-bold">
                         {property.avgPricePerSft || (isINR ? `₹ ${(pricePerSft / 100).toFixed(1)} K/sq.ft` : `$${pricePerSft}/SFT`)}
                       </div>
-                      <div className="font-mono text-neutral-600">
+                      <div className="font-mono text-neutral-500">
                         {comp.avgPricePerSft || (comp.city?.toLowerCase() === 'hyderabad' ? `₹ ${(Math.round(comp.price / comp.area) / 100).toFixed(1)} K/sq.ft` : `$${Math.round(comp.price / comp.area)}/SFT`)}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 p-2.5 items-center text-center">
-                      <div className="font-semibold text-neutral-500 text-[11px] text-left">Area Size (SFT)</div>
-                      <div className="font-mono">{property.area} SFT</div>
-                      <div className="font-mono text-neutral-600">{comp.area} SFT</div>
+                    <div className="grid grid-cols-3 p-3.5 items-center text-center">
+                      <div className="font-semibold text-neutral-500 text-[11px] text-left">Area Footprint</div>
+                      <div className="font-mono font-medium text-neutral-800">{property.area} SFT</div>
+                      <div className="font-mono text-neutral-500">{comp.area} SFT</div>
                     </div>
 
-                    <div className="grid grid-cols-3 p-2.5 items-center text-center">
-                      <div className="font-semibold text-neutral-500 text-[11px] text-left">RERA Status</div>
+                    <div className="grid grid-cols-3 p-3.5 items-center text-center">
+                      <div className="font-semibold text-neutral-500 text-[11px] text-left">RERA Validation</div>
                       <div className="text-emerald-800 font-bold">{property.reraId ? 'Registered' : 'Vetted'}</div>
-                      <div className="text-neutral-600">{comp.reraId ? 'Registered' : 'Vetted'}</div>
+                      <div className="text-neutral-500">{comp.reraId ? 'Registered' : 'Vetted'}</div>
                     </div>
 
-                    <div className="grid grid-cols-3 p-2.5 items-center text-center">
-                      <div className="font-semibold text-neutral-500 text-[11px] text-left">Possession Starts</div>
-                      <div className="font-semibold text-neutral-800">{property.possessionDate || 'Ready'}</div>
-                      <div className="text-neutral-600">{comp.possessionDate || 'Ready'}</div>
+                    <div className="grid grid-cols-3 p-3.5 items-center text-center">
+                      <div className="font-semibold text-neutral-500 text-[11px] text-left">Timeline Possession</div>
+                      <div className="font-semibold text-neutral-800">{property.possessionDate || 'Immediate'}</div>
+                      <div className="text-neutral-500">{comp.possessionDate || 'Immediate'}</div>
                     </div>
 
-                    <div className="grid grid-cols-3 p-2.5 items-center text-center">
-                      <div className="font-semibold text-neutral-500 text-[11px] text-left">Developer Group</div>
-                      <div className="font-bold text-neutral-800 truncate px-1">{property.builderName || 'Vetted Dev'}</div>
-                      <div className="text-neutral-600 truncate px-1">{comp.builderName || 'Vetted Dev'}</div>
+                    <div className="grid grid-cols-3 p-3.5 items-center text-center">
+                      <div className="font-semibold text-neutral-500 text-[11px] text-left">Development Entity</div>
+                      <div className="font-bold text-neutral-900 truncate px-1">{property.builderName || 'Vetted Dev'}</div>
+                      <div className="text-neutral-500 truncate px-1">{comp.builderName || 'Vetted Dev'}</div>
                     </div>
                   </div>
                 </div>
               );
             })()}
-          </div>
-
-          {/* DYNAMIC SPECIFICATIONS FREQUENTLY ASKED QUESTIONS (FAQ) */}
-          <div className="p-6 bg-[#ffffff] border border-[#eaeaea] rounded-[28px] space-y-4" id="faq-property-suite">
-            <div>
-              <span className="text-[10px] uppercase font-mono tracking-wider text-teal-800 font-bold">✦ Project Inquiries Q&A</span>
-              <h3 className="text-lg font-display font-medium text-neutral-900 mt-0.5">FAQs About {property.title}</h3>
-              <p className="text-xs text-neutral-500 font-sans">Frequently registered queries regarding the RERA credentials, layout pricing, and neighboring milestones.</p>
-            </div>
-
-            <div className="space-y-3 font-sans text-xs">
-              <div className="p-4 bg-neutral-50 rounded-xl space-y-1">
-                <span className="font-bold text-neutral-800 block">Q: Under what RERA Registration ID code is {property.title} registered?</span>
-                <p className="text-neutral-600 text-[11px] leading-relaxed">
-                  A: The development represents a fully registered and authorized project under RERA with ID index code <span className="font-mono font-bold text-neutral-900">{property.reraId || 'P02400009538'}</span>, guaranteeing transparent legal delivery timelines and builder adherence checks.
-                </p>
-              </div>
-
-              <div className="p-4 bg-neutral-50 rounded-xl space-y-1">
-                <span className="font-bold text-neutral-800 block">Q: When is the registered developer scheduled to start handing over possession keys?</span>
-                <p className="text-neutral-600 text-[11px] leading-relaxed">
-                  A: Handover and possession key handoffs are officially projected to begin from <span className="font-bold text-neutral-900">{property.possessionDate || 'Mar, 2030'}</span> according to state filing documents.
-                </p>
-              </div>
-
-              <div className="p-4 bg-neutral-50 rounded-xl space-y-1">
-                <span className="font-bold text-neutral-800 block">Q: What typical configurations are available in {property.title}?</span>
-                <p className="text-neutral-600 text-[11px] leading-relaxed">
-                  A: The high-end complex mostly comprises elegant <span className="font-bold text-teal-800">{property.bhkConfig || '3.5, 4, 4.5 BHK Premium Suites'}</span>. Layout space scales from {property.area.toLocaleString()} sq.ft. upwards.
-                </p>
-              </div>
-
-              <div className="p-4 bg-neutral-50 rounded-xl space-y-1">
-                <span className="font-bold text-neutral-800 block">Q: Does the listed market rate exclude specific overhead elements?</span>
-                <p className="text-neutral-600 text-[11px] leading-relaxed">
-                  A: Yes, strictly. Please note that the baseline selling price refers to the structure list and excludes floor raise premiums, GST tax outlays, registration fees, maintenance deposits, or custom stamp duty calculations.
-                </p>
-              </div>
-
-              {property.landmarks && (
-                <div className="p-4 bg-neutral-50 rounded-xl space-y-1">
-                  <span className="font-bold text-neutral-800 block">Q: What transport and lifestyle milestones locate surrounding the neighborhood?</span>
-                  <p className="text-neutral-600 text-[11px] leading-relaxed">
-                    A: Residents benefit from top connectivity including proximity to <span className="font-bold text-neutral-800">{property.landmarks.metro || 'Raidurg Metro Station'}</span> for rapid transit commute and premier education clinics such as <span className="font-bold text-neutral-800">{property.landmarks.school || 'Phoenix Greens School'}</span>.
-                  </p>
-                </div>
-              )}
-            </div>
           </div>
 
         </div>
@@ -1053,10 +963,14 @@ export default function PropertyDetailPage({
                 src={realtor.profileImage}
                 alt={realtor.name}
                 referrerPolicy="no-referrer"
-                className="w-14 h-14 rounded-2xl object-cover border border-neutral-200"
+                className="w-14 h-14 rounded-2xl object-cover border border-neutral-200 cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => navigate(`/realtor/${realtor.id}`)}
               />
               <div className="space-y-0.5">
-                <h3 className={`font-display font-bold text-base ${theme.titleColor} leading-tight`}>
+                <h3 
+                  className={`font-display font-bold text-base ${theme.titleColor} leading-tight cursor-pointer hover:underline`}
+                  onClick={() => navigate(`/realtor/${realtor.id}`)}
+                >
                   {realtor.name}
                 </h3>
                 <span className={`font-mono text-[9px] uppercase tracking-wider block ${theme.headingColor}`}>

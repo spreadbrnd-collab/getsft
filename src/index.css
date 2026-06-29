@@ -54,3 +54,323 @@ input:-webkit-autofill:active {
   -webkit-text-fill-color: #0f172a !important; /* Tailwind slate-900 */
   transition: background-color 5000s ease-in-out 0s;
 }
+
+/* ==========================================================================
+   Premium Professional Dark Mode styling Overrides (Default Mode)
+   ========================================================================== */
+.dark,
+.dark.min-h-screen,
+.dark.bg-slate-50\/50 {
+  background-color: #080c14 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Override background of main containers */
+.dark .min-h-screen {
+  background-color: #080c14 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Override header topbar */
+.dark header {
+  background-color: rgba(8, 12, 20, 0.95) !important;
+  border-color: #1a2436 !important;
+  backdrop-filter: blur(12px);
+}
+
+.dark header button, .dark header span {
+  color: #f1f5f9 !important;
+}
+
+.dark header .text-teal-750, 
+.dark header .text-teal-800, 
+.dark header .text-teal-850,
+.dark header .text-teal-900 {
+  color: #2dd4bf !important; /* Premium glowing teal accent in dark mode */
+}
+
+/* Custom card and container backgrounds */
+.dark .bg-white, 
+.dark .bg-\[\#ffffff\],
+.dark .bg-\[\#fdfdfd\],
+.dark .bg-neutral-50\/50,
+.dark .bg-neutral-50\/65 {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+}
+
+/* Neutral backings */
+.dark .bg-slate-50\/50,
+.dark .bg-slate-50,
+.dark .bg-neutral-50,
+.dark .bg-neutral-100,
+.dark .bg-gray-50,
+.dark .bg-gray-100 {
+  background-color: #0c111d !important;
+  border-color: #1a2436 !important;
+}
+
+/* Sub-panels inside settings and other widgets */
+.dark .bg-neutral-50\/65,
+.dark .bg-neutral-100\/50,
+.dark .bg-slate-100\/50 {
+  background-color: #141d2e !important;
+  border-color: #1e293b !important;
+}
+
+/* Borders */
+.dark .border-neutral-100,
+.dark .border-neutral-150,
+.dark .border-neutral-200,
+.dark .border-neutral-300,
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-gray-200,
+.dark .border-gray-300,
+.dark .border-\[\#eaeaea\] {
+  border-color: #1e293b !important;
+}
+
+/* Input elements and Form fields */
+.dark input, 
+.dark select, 
+.dark textarea {
+  background-color: #141d2e !important;
+  border-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+.dark input::placeholder, 
+.dark textarea::placeholder {
+  color: #475569 !important;
+}
+
+/* Prevent focus:bg-white or focus:bg-neutral-50 from whiting out input fields */
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus,
+.dark .focus\:bg-white:focus {
+  background-color: #1c273c !important;
+  color: #ffffff !important;
+  border-color: #2dd4bf !important;
+}
+
+/* Text primary overrides (High contrast white / off-white) */
+.dark .text-neutral-950,
+.dark .text-neutral-900,
+.dark .text-neutral-850,
+.dark .text-neutral-800,
+.dark .text-slate-950,
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-slate-700,
+.dark .text-gray-950,
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-zinc-950,
+.dark .text-zinc-900,
+.dark .text-zinc-800,
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5 {
+  color: #f8fafc !important;
+}
+
+/* Text secondary / mute overrides */
+.dark .text-neutral-500,
+.dark .text-neutral-600,
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-zinc-600,
+.dark .text-zinc-500 {
+  color: #94a3b8 !important;
+}
+
+/* Text tertiary / disabled overrides */
+.dark .text-neutral-400,
+.dark .text-neutral-300,
+.dark .text-slate-400,
+.dark .text-slate-300,
+.dark .text-gray-400,
+.dark .text-gray-300,
+.dark .text-zinc-400,
+.dark .text-zinc-300,
+.dark .text-neutral-450 {
+  color: #64748b !important;
+}
+
+/* Button overrides - Convert pitch black buttons to highly visible slate/teal highlights */
+.dark .bg-black {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #f1f5f9 !important;
+}
+
+.dark .bg-black * {
+  color: #0f172a !important;
+}
+
+.dark .bg-black:hover {
+  background-color: #e2e8f0 !important;
+}
+
+/* Active navigation item glowing teal */
+.dark .bg-black.text-white {
+  background-color: #14b8a6 !important;
+  color: #ffffff !important;
+  border-color: #14b8a6 !important;
+}
+
+.dark .bg-black.text-white * {
+  color: #ffffff !important;
+}
+
+/* Neutral buttons and badges */
+.dark .bg-neutral-900,
+.dark .bg-neutral-950 {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+/* Hover fixes for list/dropdown text visibility */
+.dark .hover\:text-black:hover,
+.dark .hover\:text-neutral-900:hover,
+.dark .hover\:text-neutral-800:hover {
+  color: #ffffff !important;
+}
+
+.dark .hover\:bg-neutral-50:hover,
+.dark .hover\:bg-neutral-100:hover,
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-100:hover {
+  background-color: #1e293b !important;
+}
+
+/* Teal pill tags / background panels */
+.dark .bg-teal-50,
+.dark .bg-teal-50\/20,
+.dark .bg-teal-50\/30,
+.dark .bg-teal-50\/40 {
+  background-color: #112d37 !important;
+  border-color: #134e5e !important;
+}
+
+.dark .text-teal-850,
+.dark .text-teal-800,
+.dark .text-teal-700,
+.dark .text-teal-750 {
+  color: #2dd4bf !important;
+}
+
+/* Color Pill Tags & Status Badges adaptivity to maintain vibrant identities */
+.dark .bg-emerald-50,
+.dark .bg-emerald-50\/50 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+.dark .text-emerald-700,
+.dark .text-emerald-800 {
+  color: #34d399 !important;
+}
+
+.dark .bg-yellow-50,
+.dark .bg-yellow-50\/50 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+.dark .text-yellow-700,
+.dark .text-yellow-800 {
+  color: #fbbf24 !important;
+}
+
+.dark .bg-red-50,
+.dark .bg-red-50\/50 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+.dark .text-red-700,
+.dark .text-red-800 {
+  color: #f87171 !important;
+}
+
+.dark .bg-blue-50,
+.dark .bg-blue-50\/50 {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+.dark .text-blue-700,
+.dark .text-blue-800 {
+  color: #60a5fa !important;
+}
+
+.dark .bg-indigo-50,
+.dark .bg-indigo-50\/50 {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+.dark .text-indigo-700,
+.dark .text-indigo-800 {
+  color: #818cf8 !important;
+}
+
+.dark .bg-purple-50,
+.dark .bg-purple-50\/50 {
+  background-color: rgba(168, 85, 247, 0.15) !important;
+  border-color: rgba(168, 85, 247, 0.3) !important;
+}
+.dark .text-purple-700,
+.dark .text-purple-800 {
+  color: #c084fc !important;
+}
+
+/* Wishlist background and text overrides */
+.dark .bg-\[\#134e4a\] {
+  background-color: #0d9488 !important;
+}
+
+/* Ensure dropdown menus and select choices render beautifully */
+.dark .shadow-xl,
+.dark .shadow-2xl {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Option tags inside select dropdowns */
+.dark option {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+/* Modal overlays */
+.dark .bg-black\/40,
+.dark .bg-black\/50,
+.dark .bg-black\/20,
+.dark .bg-neutral-950\/60 {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Adjust tables in Leads or Lists */
+.dark table {
+  color: #f1f5f9 !important;
+}
+
+.dark th {
+  background-color: #0c111d !important;
+  color: #94a3b8 !important;
+  border-bottom: 1px solid #1e293b !important;
+}
+
+.dark td {
+  border-bottom: 1px solid #1e293b !important;
+}
+
+.dark .divide-neutral-100 > * + * {
+  border-color: #1e293b !important;
+}
+

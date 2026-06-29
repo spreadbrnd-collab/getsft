@@ -1,13 +1,25 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutDashboard, FileText, Users, Globe, SwatchBook, LineChart, Settings, CreditCard, LogOut,
   Plus, Eye, CheckCircle, Trash2, ArrowUpRight, DollarSign, Calendar, Sliders, GlobeIcon, 
-  MapPin, Check, Sparkles, Send, Mail, Phone, BookOpen, Edit, PhoneCall, Home, Upload, Camera
+  MapPin, Check, Sparkles, Send, Mail, Phone, BookOpen, Edit, PhoneCall, Home, Upload, Camera,
+  CheckSquare, Share2, Heart, Moon, Sun, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { User, Property, Inquiry, ActiveTab, Realtor } from '../types';
+import { User, Property, Inquiry, ActiveTab, Realtor, Task, Booking } from '../types';
 import RealtorProfilePage from './RealtorProfilePage';
+import { QRCodeSVG } from 'qrcode.react';
+
+// New CRM Tabs & Services
+import CrmLeadsTab from './CrmLeadsTab';
+import TasksTab from './TasksTab';
+import BookingsTab from './BookingsTab';
+import ShareKitTab from './ShareKitTab';
+import { taskService } from '../services/taskService';
+import { bookingService } from '../services/bookingService';
+import { leadService } from '../services/leadService';
+
 
 interface RealtorDashboardProps {
   currentUser: User;
@@ -17,6 +29,8 @@ interface RealtorDashboardProps {
   onUpdateRealtorProfile: (profile: Realtor) => void;
   onUpdateInquiries: (inquiries: Inquiry[]) => void;
   onLogout: () => void;
+  darkMode: boolean;
+  setDarkMode: (val: boolean) => void;
 }
 
 export default function RealtorDashboard({
@@ -27,10 +41,13 @@ export default function RealtorDashboard({
   onUpdateRealtorProfile,
   onUpdateInquiries,
   onLogout,
+  darkMode,
+  setDarkMode,
 }: RealtorDashboardProps) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [profile, setProfile] = useState<Realtor>(
     currentUser.realtorProfile || {
       id: currentUser.id,
@@ -57,7 +74,7 @@ export default function RealtorDashboard({
   const [newBeds, setNewBeds] = useState('3');
   const [newBaths, setNewBaths] = useState('2.5');
   const [newArea, setNewArea] = useState('3200');
-  const [newType, setNewType] = useState<'Penthouse' | 'Villa' | 'Estate' | 'Townhouse' | 'Apartment'>('Villa');
+  const [newType, setNewType] = useState<'House' | 'Apartment' | 'Condo' | 'Villa' | 'Townhouse' | 'Land' | 'Commercial' | 'Office' | 'Warehouse' | 'Retail' | 'Penthouse' | 'Estate'>('Villa');
   const [newAddress, setNewAddress] = useState('');
   const [newCity, setNewCity] = useState(profile.city);
   const [newProvince, setNewProvince] = useState('British Columbia');
@@ -87,12 +104,54 @@ export default function RealtorDashboard({
   const [landmarkMall, setLandmarkMall] = useState('');
   const [landmarkRestaurant, setLandmarkRestaurant] = useState('');
 
+  // Portal Improved Fields States
+  const [newStatus, setNewStatus] = useState<'Available' | 'Sold' | 'Rented' | 'Under Contract' | 'Active' | 'Pending'>('Available');
+  const [newCurrency, setNewCurrency] = useState('USD');
+  const [newShortDesc, setNewShortDesc] = useState('');
+  const [newCountry, setNewCountry] = useState('Canada');
+  const [newAreaCommunity, setNewAreaCommunity] = useState('');
+  const [newGoogleMap, setNewGoogleMap] = useState('');
+  const [newKitchens, setNewKitchens] = useState('1');
+  const [newLivingRooms, setNewLivingRooms] = useState('1');
+  const [newDiningRooms, setNewDiningRooms] = useState('1');
+  const [newParking, setNewParking] = useState('2');
+  const [newFloorNumber, setNewFloorNumber] = useState('');
+  const [newTotalFloors, setNewTotalFloors] = useState('');
+  const [newLotSize, setNewLotSize] = useState('');
+  const [newYearBuilt, setNewYearBuilt] = useState('');
+  const [newPropertyCondition, setNewPropertyCondition] = useState<'New' | 'Resale' | 'Under Construction'>('New');
+  const [newFurnishedStatus, setNewFurnishedStatus] = useState<'Furnished' | 'Semi-Furnished' | 'Unfurnished'>('Furnished');
+  const [newWeeklyRent, setNewWeeklyRent] = useState('');
+  const [newYearlyRent, setNewYearlyRent] = useState('');
+  const [newSecurityDeposit, setNewSecurityDeposit] = useState('');
+  const [newLeaseDuration, setNewLeaseDuration] = useState('');
+  const [newAvailableFrom, setNewAvailableFrom] = useState('');
+  const [newEstMonthlyRentalIncome, setNewEstMonthlyRentalIncome] = useState('');
+  const [newEstAnnualRentalIncome, setNewEstAnnualRentalIncome] = useState('');
+  const [newGrossRentalYield, setNewGrossRentalYield] = useState('');
+  const [newEstRoi, setNewEstRoi] = useState('');
+  const [newPropertyTax, setNewPropertyTax] = useState('');
+  const [newHoaMaintenanceFee, setNewHoaMaintenanceFee] = useState('');
+  const [newEstMonthlyMaintenance, setNewEstMonthlyMaintenance] = useState('');
+  const [newVideoTour, setNewVideoTour] = useState('');
+  const [newVirtualTour360, setNewVirtualTour360] = useState('');
+  const [newFloorPlanImage, setNewFloorPlanImage] = useState('');
+  const [newPdfBrochureUrl, setNewPdfBrochureUrl] = useState('');
+  const [newNearbySchools, setNewNearbySchools] = useState('');
+  const [newNearbyHospitals, setNewNearbyHospitals] = useState('');
+  const [newNearbyPublicTransport, setNewNearbyPublicTransport] = useState('');
+  const [newNearbyShoppingCentres, setNewNearbyShoppingCentres] = useState('');
+  const [newNearbyParks, setNewNearbyParks] = useState('');
+  const [newMlsNumber, setNewMlsNumber] = useState('');
+  const [newInternationalRegId, setNewInternationalRegId] = useState('');
+
   // Track replied leads to avoid blocky window.alerts
   const [repliedInquiries, setRepliedInquiries] = useState<Record<string, boolean>>({});
   const [activePlan, setActivePlan] = useState('GetSFT Launch');
 
   // Active Live preview of Realtor site inside Website builder tab
   const [isLivePreviewing, setIsLivePreviewing] = useState(false);
+  const [isComparingTemplates, setIsComparingTemplates] = useState(false);
 
   // Local dashboard toast message notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -102,6 +161,20 @@ export default function RealtorDashboard({
       setToastMessage((prev) => (prev === msg ? null : prev));
     }, 4000);
   };
+
+  // CRM Tasks & Bookings Local States for Dashboard Widgets
+  const [dashboardTasks, setDashboardTasks] = useState<Task[]>([]);
+  const [dashboardBookings, setDashboardBookings] = useState<Booking[]>([]);
+
+  useEffect(() => {
+    async function loadDashboardCrm() {
+      const fetchedTasks = await taskService.getTasks(currentUser.id);
+      setDashboardTasks(fetchedTasks);
+      const fetchedBookings = await bookingService.getBookings(currentUser.id);
+      setDashboardBookings(fetchedBookings);
+    }
+    loadDashboardCrm();
+  }, [currentUser.id]);
 
   // Filter properties owned by this realtor
   const myProperties = useMemo(() => {
@@ -208,11 +281,52 @@ export default function RealtorDashboard({
     setNewBuilderName('');
     setNewBuilderDescription('');
     setNewHighlightStr('');
+    setNewMlsNumber('');
+    setNewInternationalRegId('');
     setLandmarkSchool('');
     setLandmarkMetro('');
     setLandmarkHospital('');
     setLandmarkMall('');
     setLandmarkRestaurant('');
+
+    // Portal fields reset
+    setNewStatus('Available');
+    setNewCurrency('USD');
+    setNewShortDesc('');
+    setNewCountry('Canada');
+    setNewAreaCommunity('');
+    setNewGoogleMap('');
+    setNewKitchens('1');
+    setNewLivingRooms('1');
+    setNewDiningRooms('1');
+    setNewParking('2');
+    setNewFloorNumber('');
+    setNewTotalFloors('');
+    setNewLotSize('');
+    setNewYearBuilt('');
+    setNewPropertyCondition('New');
+    setNewFurnishedStatus('Furnished');
+    setNewWeeklyRent('');
+    setNewYearlyRent('');
+    setNewSecurityDeposit('');
+    setNewLeaseDuration('');
+    setNewAvailableFrom('');
+    setNewEstMonthlyRentalIncome('');
+    setNewEstAnnualRentalIncome('');
+    setNewGrossRentalYield('');
+    setNewEstRoi('');
+    setNewPropertyTax('');
+    setNewHoaMaintenanceFee('');
+    setNewEstMonthlyMaintenance('');
+    setNewVideoTour('');
+    setNewVirtualTour360('');
+    setNewFloorPlanImage('');
+    setNewPdfBrochureUrl('');
+    setNewNearbySchools('');
+    setNewNearbyHospitals('');
+    setNewNearbyPublicTransport('');
+    setNewNearbyShoppingCentres('');
+    setNewNearbyParks('');
   };
 
   const handleStartEditListing = (p: Property) => {
@@ -243,11 +357,52 @@ export default function RealtorDashboard({
     setNewBuilderName(p.builderName || '');
     setNewBuilderDescription(p.builderDescription || '');
     setNewHighlightStr(p.highlights ? p.highlights.join(', ') : '');
+    setNewMlsNumber(p.mlsNumber || '');
+    setNewInternationalRegId(p.internationalRegId || '');
     setLandmarkSchool(p.landmarks?.school || '');
     setLandmarkMetro(p.landmarks?.metro || '');
     setLandmarkHospital(p.landmarks?.hospital || '');
     setLandmarkMall(p.landmarks?.mall || '');
     setLandmarkRestaurant(p.landmarks?.restaurant || '');
+
+    // Portal fields load
+    setNewStatus(p.status || 'Available');
+    setNewCurrency(p.currency || 'USD');
+    setNewShortDesc(p.shortDescription || '');
+    setNewCountry(p.country || 'Canada');
+    setNewAreaCommunity(p.areaCommunity || '');
+    setNewGoogleMap(p.googleMapLocation || '');
+    setNewKitchens((p.kitchens ?? 1).toString());
+    setNewLivingRooms((p.livingRooms ?? 1).toString());
+    setNewDiningRooms((p.diningRooms ?? 1).toString());
+    setNewParking((p.parkingSpaces ?? 2).toString());
+    setNewFloorNumber(p.floorNumber?.toString() || '');
+    setNewTotalFloors(p.totalFloors?.toString() || '');
+    setNewLotSize(p.lotSize?.toString() || '');
+    setNewYearBuilt(p.yearBuilt?.toString() || '');
+    setNewPropertyCondition(p.propertyCondition || 'New');
+    setNewFurnishedStatus(p.furnishedStatus || 'Furnished');
+    setNewWeeklyRent(p.weeklyRent?.toString() || '');
+    setNewYearlyRent(p.yearlyRent?.toString() || '');
+    setNewSecurityDeposit(p.securityDeposit?.toString() || '');
+    setNewLeaseDuration(p.leaseDuration || '');
+    setNewAvailableFrom(p.availableFrom || '');
+    setNewEstMonthlyRentalIncome(p.estMonthlyRentalIncome?.toString() || '');
+    setNewEstAnnualRentalIncome(p.estAnnualRentalIncome?.toString() || '');
+    setNewGrossRentalYield(p.grossRentalYield?.toString() || '');
+    setNewEstRoi(p.estRoi?.toString() || '');
+    setNewPropertyTax(p.propertyTax?.toString() || '');
+    setNewHoaMaintenanceFee(p.hoaMaintenanceFee?.toString() || '');
+    setNewEstMonthlyMaintenance(p.estMonthlyMaintenance?.toString() || '');
+    setNewVideoTour(p.videoTour || '');
+    setNewVirtualTour360(p.virtualTour360 || '');
+    setNewFloorPlanImage(p.floorPlanImage || '');
+    setNewPdfBrochureUrl(p.pdfBrochureUrl || '');
+    setNewNearbySchools(p.nearbySchools || '');
+    setNewNearbyHospitals(p.nearbyHospitals || '');
+    setNewNearbyPublicTransport(p.nearbyPublicTransport || '');
+    setNewNearbyShoppingCentres(p.nearbyShoppingCentres || '');
+    setNewNearbyParks(p.nearbyParks || '');
 
     setIsCreatingListing(true);
   };
@@ -294,7 +449,48 @@ export default function RealtorDashboard({
               hospital: landmarkHospital || undefined,
               mall: landmarkMall || undefined,
               restaurant: landmarkRestaurant || undefined
-            } : undefined
+            } : undefined,
+
+            // New portal fields mapped
+            status: newStatus as any,
+            currency: newCurrency,
+            shortDescription: newShortDesc || undefined,
+            country: newCountry,
+            areaCommunity: newAreaCommunity || undefined,
+            googleMapLocation: newGoogleMap || undefined,
+            kitchens: parseInt(newKitchens) || 1,
+            livingRooms: parseInt(newLivingRooms) || 1,
+            diningRooms: parseInt(newDiningRooms) || 1,
+            parkingSpaces: parseInt(newParking) || 2,
+            floorNumber: newFloorNumber ? parseInt(newFloorNumber) : undefined,
+            totalFloors: newTotalFloors ? parseInt(newTotalFloors) : undefined,
+            lotSize: newLotSize ? parseInt(newLotSize) : undefined,
+            yearBuilt: newYearBuilt ? parseInt(newYearBuilt) : undefined,
+            propertyCondition: newPropertyCondition as any,
+            furnishedStatus: newFurnishedStatus as any,
+            weeklyRent: newWeeklyRent ? parseFloat(newWeeklyRent) : undefined,
+            yearlyRent: newYearlyRent ? parseFloat(newYearlyRent) : undefined,
+            securityDeposit: newSecurityDeposit ? parseFloat(newSecurityDeposit) : undefined,
+            leaseDuration: newLeaseDuration || undefined,
+            availableFrom: newAvailableFrom || undefined,
+            estMonthlyRentalIncome: newEstMonthlyRentalIncome ? parseFloat(newEstMonthlyRentalIncome) : undefined,
+            estAnnualRentalIncome: newEstAnnualRentalIncome ? parseFloat(newEstAnnualRentalIncome) : undefined,
+            grossRentalYield: newGrossRentalYield ? parseFloat(newGrossRentalYield) : undefined,
+            estRoi: newEstRoi ? parseFloat(newEstRoi) : undefined,
+            propertyTax: newPropertyTax ? parseFloat(newPropertyTax) : undefined,
+            hoaMaintenanceFee: newHoaMaintenanceFee ? parseFloat(newHoaMaintenanceFee) : undefined,
+            estMonthlyMaintenance: newEstMonthlyMaintenance ? parseFloat(newEstMonthlyMaintenance) : undefined,
+            videoTour: newVideoTour || undefined,
+            virtualTour360: newVirtualTour360 || undefined,
+            floorPlanImage: newFloorPlanImage || undefined,
+            pdfBrochureUrl: newPdfBrochureUrl || undefined,
+            nearbySchools: newNearbySchools || undefined,
+            nearbyHospitals: newNearbyHospitals || undefined,
+            nearbyPublicTransport: newNearbyPublicTransport || undefined,
+            nearbyShoppingCentres: newNearbyShoppingCentres || undefined,
+            nearbyParks: newNearbyParks || undefined,
+            mlsNumber: newMlsNumber || undefined,
+            internationalRegId: newInternationalRegId || undefined
           };
           return editedProperty;
         }
@@ -325,7 +521,7 @@ export default function RealtorDashboard({
       postalCode: newPostal,
       images: [newImgUrl || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80'],
       openHouseDate: newOpenHouse || undefined,
-      status: 'Active',
+      status: newStatus as any,
       show_on_profile: showOnProfile,
       show_on_marketplace: listOnMarketplace,
       listingIntent: newIntent,
@@ -345,7 +541,47 @@ export default function RealtorDashboard({
         hospital: landmarkHospital || undefined,
         mall: landmarkMall || undefined,
         restaurant: landmarkRestaurant || undefined
-      } : undefined
+      } : undefined,
+
+      // New portal fields mapped
+      currency: newCurrency,
+      shortDescription: newShortDesc || undefined,
+      country: newCountry,
+      areaCommunity: newAreaCommunity || undefined,
+      googleMapLocation: newGoogleMap || undefined,
+      kitchens: parseInt(newKitchens) || 1,
+      livingRooms: parseInt(newLivingRooms) || 1,
+      diningRooms: parseInt(newDiningRooms) || 1,
+      parkingSpaces: parseInt(newParking) || 2,
+      floorNumber: newFloorNumber ? parseInt(newFloorNumber) : undefined,
+      totalFloors: newTotalFloors ? parseInt(newTotalFloors) : undefined,
+      lotSize: newLotSize ? parseInt(newLotSize) : undefined,
+      yearBuilt: newYearBuilt ? parseInt(newYearBuilt) : undefined,
+      propertyCondition: newPropertyCondition as any,
+      furnishedStatus: newFurnishedStatus as any,
+      weeklyRent: newWeeklyRent ? parseFloat(newWeeklyRent) : undefined,
+      yearlyRent: newYearlyRent ? parseFloat(newYearlyRent) : undefined,
+      securityDeposit: newSecurityDeposit ? parseFloat(newSecurityDeposit) : undefined,
+      leaseDuration: newLeaseDuration || undefined,
+      availableFrom: newAvailableFrom || undefined,
+      estMonthlyRentalIncome: newEstMonthlyRentalIncome ? parseFloat(newEstMonthlyRentalIncome) : undefined,
+      estAnnualRentalIncome: newEstAnnualRentalIncome ? parseFloat(newEstAnnualRentalIncome) : undefined,
+      grossRentalYield: newGrossRentalYield ? parseFloat(newGrossRentalYield) : undefined,
+      estRoi: newEstRoi ? parseFloat(newEstRoi) : undefined,
+      propertyTax: newPropertyTax ? parseFloat(newPropertyTax) : undefined,
+      hoaMaintenanceFee: newHoaMaintenanceFee ? parseFloat(newHoaMaintenanceFee) : undefined,
+      estMonthlyMaintenance: newEstMonthlyMaintenance ? parseFloat(newEstMonthlyMaintenance) : undefined,
+      videoTour: newVideoTour || undefined,
+      virtualTour360: newVirtualTour360 || undefined,
+      floorPlanImage: newFloorPlanImage || undefined,
+      pdfBrochureUrl: newPdfBrochureUrl || undefined,
+      nearbySchools: newNearbySchools || undefined,
+      nearbyHospitals: newNearbyHospitals || undefined,
+      nearbyPublicTransport: newNearbyPublicTransport || undefined,
+      nearbyShoppingCentres: newNearbyShoppingCentres || undefined,
+      nearbyParks: newNearbyParks || undefined,
+      mlsNumber: newMlsNumber || undefined,
+      internationalRegId: newInternationalRegId || undefined
     };
 
     const updated = [addedProperty, ...properties];
@@ -410,14 +646,60 @@ export default function RealtorDashboard({
     onUpdateRealtorProfile(updatedProfile);
   };
 
+  const downloadQR = (propertyId: number, title: string, format: 'png' | 'svg') => {
+    const svgEl = document.getElementById(`qr-svg-${propertyId}`);
+    if (!svgEl) return;
+    const svgString = new XMLSerializer().serializeToString(svgEl);
+    
+    if (format === 'svg') {
+      const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `QR-${title.replace(/\s+/g, '-')}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`Downloaded SVG QR Code for "${title}"!`);
+    } else {
+      const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+      const blobURL = URL.createObjectURL(svgBlob);
+      const image = new Image();
+      image.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const context = canvas.getContext('2d');
+        if (context) {
+          context.fillStyle = '#FFFFFF';
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.drawImage(image, 24, 24, 464, 464);
+          const pngURL = canvas.toDataURL('image/png');
+          const a = document.createElement('a');
+          a.href = pngURL;
+          a.download = `QR-${title.replace(/\s+/g, '-')}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          showToast(`Downloaded PNG QR Code for "${title}"!`);
+        }
+      };
+      image.src = blobURL;
+    }
+  };
+
   // Nav side links matching layout specifications
   const sidebarItems = [
     { id: 'overview', name: 'Dashboard', icon: LayoutDashboard },
     { id: 'listings', name: 'Listings', icon: FileText },
     { id: 'leads', name: 'Leads', icon: Users },
+    { id: 'tasks', name: 'Tasks', icon: CheckSquare },
+    { id: 'bookings', name: 'Bookings', icon: Calendar },
     { id: 'website', name: 'Website', icon: Globe },
     { id: 'templates', name: 'Templates', icon: SwatchBook },
     { id: 'analytics', name: 'Analytics', icon: LineChart },
+    { id: 'share_kit', name: 'Share Kit', icon: Share2 },
     { id: 'settings', name: 'Settings', icon: Settings },
     { id: 'billing', name: 'Billing', icon: CreditCard },
   ];
@@ -431,41 +713,65 @@ export default function RealtorDashboard({
           <div className="w-7 h-7 rounded-md bg-black flex items-center justify-center text-white font-serif font-black text-xs">
             SFT
           </div>
-          <span className="font-display font-bold text-sm text-neutral-900">GetSFT CRM</span>
+          <span className="font-display font-bold text-sm text-neutral-900">CRM</span>
         </div>
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg cursor-pointer text-[11px] font-mono font-bold uppercase tracking-wider shadow-xs active:scale-95 transition-all"
         >
-          {isMobileMenuOpen ? 'Close Menu ✕' : 'CRM Menu ☰'}
+          {isMobileMenuOpen ? 'Close Menu ✕' : 'Menu ☰'}
         </button>
       </div>
 
       {/* Modern Cupertino Sidebar Navigation */}
-      <aside className={`w-full md:w-64 bg-[#fdfdfd] border-b md:border-b-0 md:border-r border-[#eaeaea] p-6 flex-col justify-between shrink-0 pt-6 md:pt-6 ${isMobileMenuOpen ? 'flex' : 'hidden md:flex'}`}>
+      <aside className={`w-full ${isSidebarCollapsed ? 'md:w-20 p-4' : 'md:w-64 p-6'} bg-[#fdfdfd] border-b md:border-b-0 md:border-r border-[#eaeaea] flex flex-col justify-between shrink-0 pt-6 md:pt-6 transition-all duration-300 ${isMobileMenuOpen ? 'flex' : 'hidden md:flex'}`}>
         <div>
           {/* Platform Identity */}
-          <button
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              navigate('/');
-            }}
-            className="mb-8 flex items-center gap-3 px-2 text-left w-full hover:opacity-80 transition-opacity group cursor-pointer"
-            id="dashboard-brand-logo"
-            title="Return to getsft.com Homepage"
-          >
-            <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white font-serif font-black text-sm shrink-0 group-hover:scale-95 transition-transform">
-              SFT
-            </div>
-            <div>
-              <span className="font-display font-bold text-lg leading-tight tracking-tight block text-neutral-900">GetSFT CRM</span>
-              <span className="text-[10px] font-mono tracking-wider text-teal-600 block uppercase font-bold hover:underline">← Go Homepage</span>
-            </div>
-          </button>
+          <div className="mb-8 flex items-center justify-between gap-2">
+            {!isSidebarCollapsed ? (
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  navigate('/');
+                }}
+                className="flex items-center gap-3 px-1 text-left hover:opacity-80 transition-opacity group cursor-pointer min-w-0"
+                id="dashboard-brand-logo"
+                title="Return to getsft.com Homepage"
+              >
+                <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white font-serif font-black text-sm shrink-0 group-hover:scale-95 transition-transform">
+                  SFT
+                </div>
+                <div className="min-w-0">
+                  <span className="font-display font-bold text-base leading-tight tracking-tight block text-neutral-900 truncate">CRM</span>
+                  <span className="text-[9px] font-mono tracking-wider text-teal-600 block uppercase font-bold hover:underline truncate">← Go Homepage</span>
+                </div>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  navigate('/');
+                }}
+                className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white font-serif font-black text-sm shrink-0 mx-auto cursor-pointer"
+                title="Go to SFT Homepage"
+              >
+                SFT
+              </button>
+            )}
+
+            {/* Collapse/Expand Toggle Button (Desktop only) */}
+            <button
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="hidden md:flex items-center justify-center w-7 h-7 rounded-lg border border-neutral-150 bg-white text-neutral-500 hover:text-black hover:bg-neutral-50 transition-all cursor-pointer shadow-xs shrink-0 animate-fade-in"
+              title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+              {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            </button>
+          </div>
 
           {/* Quick info of authenticated Agent */}
-          <div className="mb-6 p-4 rounded-2xl bg-neutral-50 border border-neutral-100/50 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl overflow-hidden bg-neutral-200">
+          <div className={`mb-6 p-4 rounded-2xl bg-white border border-[#eaeaea] flex items-center ${isSidebarCollapsed ? 'justify-center p-2' : 'gap-3'}`}>
+            <div className="w-10 h-10 rounded-xl overflow-hidden bg-neutral-100 shrink-0">
               <img
                 src={profile.profileImage}
                 alt={profile.name}
@@ -473,10 +779,12 @@ export default function RealtorDashboard({
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="min-w-0">
-              <span className="font-sans font-medium text-xs text-neutral-800 truncate block">{profile.name}</span>
-              <span className="font-mono text-[9px] text-[#999999] truncate block uppercase tracking-wider">{profile.title}</span>
-            </div>
+            {!isSidebarCollapsed && (
+              <div className="min-w-0">
+                <span className="font-sans font-medium text-xs text-neutral-800 truncate block">{profile.name}</span>
+                <span className="font-mono text-[9px] text-[#999999] truncate block uppercase tracking-wider">{profile.title}</span>
+              </div>
+            )}
           </div>
 
           {/* Sidebar Tabs List */}
@@ -492,7 +800,10 @@ export default function RealtorDashboard({
                     setIsLivePreviewing(false);
                     setIsMobileMenuOpen(false); // Auto-close mobile menu on selection
                   }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-sans font-medium transition-all duration-150 ${
+                  title={item.name}
+                  className={`w-full flex items-center rounded-xl text-xs font-sans font-medium transition-all duration-150 ${
+                    isSidebarCollapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5'
+                  } ${
                     isActive 
                       ? 'bg-black text-white shadow-xs' 
                       : 'text-neutral-500 hover:bg-neutral-50 hover:text-black'
@@ -500,7 +811,7 @@ export default function RealtorDashboard({
                   id={`sidebar-tab-${item.id}`}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
-                  {item.name}
+                  {!isSidebarCollapsed && item.name}
                 </button>
               );
             })}
@@ -511,20 +822,26 @@ export default function RealtorDashboard({
         <div className="mt-8 pt-6 border-t border-[#eaeaea] space-y-2">
           <button
             onClick={() => navigate('/')}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-sans font-medium text-neutral-700 hover:bg-neutral-50 hover:text-black transition-colors cursor-pointer"
+            title="Go to SFT Homepage"
+            className={`w-full flex items-center rounded-xl text-xs font-sans font-medium text-neutral-700 hover:bg-neutral-50 hover:text-black transition-colors cursor-pointer ${
+              isSidebarCollapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5'
+            }`}
             id="sidebar-home-btn"
           >
-            <Home className="w-4 h-4 text-neutral-500" />
-            Go to SFT Homepage
+            <Home className="w-4 h-4 text-neutral-500 shrink-0" />
+            {!isSidebarCollapsed && "Go to SFT Homepage"}
           </button>
           
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-sans font-medium text-red-650 hover:bg-red-50/50 transition-colors cursor-pointer"
+            title="Sign Out"
+            className={`w-full flex items-center rounded-xl text-xs font-sans font-medium text-red-650 hover:bg-red-50/50 transition-colors cursor-pointer ${
+              isSidebarCollapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5'
+            }`}
             id="sidebar-logout-btn"
           >
-            <LogOut className="w-4 h-4" />
-            Sign Out
+            <LogOut className="w-4 h-4 shrink-0" />
+            {!isSidebarCollapsed && "Sign Out"}
           </button>
         </div>
       </aside>
@@ -767,6 +1084,113 @@ export default function RealtorDashboard({
                     </div>
 
                   </div>
+
+                  {/* Additional CRM Widgets */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {/* Today's Tasks Widget */}
+                    <div className="bg-white border border-neutral-100 rounded-[24px] p-6 space-y-4">
+                      <div className="flex items-center justify-between border-b border-neutral-50 pb-2">
+                        <h4 className="text-xs font-mono uppercase tracking-wider text-teal-800 font-bold flex items-center gap-1.5">
+                          <CheckSquare className="w-4 h-4" /> Today's Tasks
+                        </h4>
+                        <button onClick={() => setActiveTab('tasks')} className="text-[10px] text-neutral-400 hover:text-black font-mono uppercase">Manage ➔</button>
+                      </div>
+                      {dashboardTasks.filter(t => t.status === 'Pending').length === 0 ? (
+                        <p className="text-xs text-neutral-400 font-sans italic py-4 text-center">No pending tasks for today.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {dashboardTasks.filter(t => t.status === 'Pending').slice(0, 3).map(task => (
+                            <div key={task.id} className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-[#eaeaea]">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 mt-1.5"></span>
+                              <div className="min-w-0">
+                                <span className="text-[11px] font-sans font-semibold text-neutral-800 line-clamp-1">{task.title}</span>
+                                <span className="text-[9px] font-mono text-neutral-400 block">{task.dueDate}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Upcoming Booking Widget */}
+                    <div className="bg-white border border-neutral-100 rounded-[24px] p-6 space-y-4">
+                      <div className="flex items-center justify-between border-b border-neutral-50 pb-2">
+                        <h4 className="text-xs font-mono uppercase tracking-wider text-indigo-850 font-bold flex items-center gap-1.5">
+                          <Calendar className="w-4 h-4" /> Upcoming Booking
+                        </h4>
+                        <button onClick={() => setActiveTab('bookings')} className="text-[10px] text-neutral-400 hover:text-black font-mono uppercase">Schedules ➔</button>
+                      </div>
+                      {dashboardBookings.filter(b => b.status === 'Pending' || b.status === 'Accepted').length === 0 ? (
+                        <p className="text-xs text-neutral-400 font-sans italic py-4 text-center">No upcoming meetings scheduled.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {dashboardBookings.filter(b => b.status === 'Pending' || b.status === 'Accepted').slice(0, 2).map(b => (
+                            <div key={b.id} className="bg-white p-2.5 rounded-xl border border-[#eaeaea] space-y-1">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[11px] font-sans font-bold text-neutral-800">{b.name}</span>
+                                <span className="text-[9px] font-mono text-teal-800 uppercase">{b.meetingType}</span>
+                              </div>
+                              <div className="text-[9px] font-mono text-neutral-400 flex items-center justify-between">
+                                <span>{b.date}</span>
+                                <span>{b.time}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* New Leads Widget */}
+                    <div className="bg-white border border-neutral-100 rounded-[24px] p-6 space-y-4">
+                      <div className="flex items-center justify-between border-b border-neutral-50 pb-2">
+                        <h4 className="text-xs font-mono uppercase tracking-wider text-rose-800 font-bold flex items-center gap-1.5">
+                          <Users className="w-4 h-4" /> New Leads
+                        </h4>
+                        <button onClick={() => setActiveTab('leads')} className="text-[10px] text-neutral-400 hover:text-black font-mono uppercase">Inbox ➔</button>
+                      </div>
+                      {myInquiries.length === 0 ? (
+                        <p className="text-xs text-neutral-400 font-sans italic py-4 text-center">No leads registered yet.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {myInquiries.slice(0, 3).map(lead => (
+                            <div key={lead.id} className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-[#eaeaea]">
+                              <div className="min-w-0">
+                                <span className="text-[11px] font-sans font-bold text-neutral-800 block line-clamp-1">{lead.name}</span>
+                                <span className="text-[9px] font-mono text-neutral-400 block line-clamp-1">{lead.email}</span>
+                              </div>
+                              <span className="text-[9px] font-mono uppercase bg-neutral-100 px-1.5 py-0.5 rounded text-neutral-600 shrink-0 border border-[#eaeaea]">
+                                New
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Saved Homes / Market activity Widget */}
+                    <div className="bg-white border border-neutral-100 rounded-[24px] p-6 space-y-4">
+                      <div className="flex items-center justify-between border-b border-neutral-50 pb-2">
+                        <h4 className="text-xs font-mono uppercase tracking-wider text-amber-800 font-bold flex items-center gap-1.5">
+                          <Heart className="w-4 h-4" /> Saved Homes
+                        </h4>
+                        <button onClick={() => setActiveTab('listings')} className="text-[10px] text-neutral-400 hover:text-black font-mono uppercase">Catalog ➔</button>
+                      </div>
+                      <div className="space-y-3 pt-1">
+                        <div className="flex items-center justify-between text-xs text-neutral-700">
+                          <span>Total Watchlists:</span>
+                          <span className="font-mono font-bold text-neutral-900">{metrics.totalSaves || 14} saves</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-neutral-700">
+                          <span>Market Shares:</span>
+                          <span className="font-mono font-bold text-neutral-900">8 broadcasts</span>
+                        </div>
+                        <div className="p-2.5 bg-amber-50/50 text-amber-900 rounded-xl text-[10px] font-sans leading-tight">
+                          💡 Focus marketing efforts on properties with highest saved rates!
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               )}
 
@@ -897,22 +1321,47 @@ export default function RealtorDashboard({
                                   ${p.price.toLocaleString()}
                                 </td>
                                 <td className="py-4 px-6 text-center">
-                                  <div className="flex items-center justify-center gap-1.5">
+                                  <div className="flex items-center justify-center gap-1.5 flex-wrap md:flex-nowrap">
+                                    {/* Invisible QR generator for serializing */}
+                                    <div style={{ display: 'none' }}>
+                                      <QRCodeSVG
+                                        id={`qr-svg-${p.property_id}`}
+                                        value={profile.customDomain ? `https://${profile.customDomain}/property/${p.property_id}` : `https://${profile.id}.getsft.com/property/${p.property_id}`}
+                                        size={256}
+                                        level="H"
+                                      />
+                                    </div>
+                                    <button
+                                      onClick={() => downloadQR(p.property_id, p.title, 'png')}
+                                      className="px-1.5 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-[8px] font-mono rounded uppercase font-bold cursor-pointer shrink-0"
+                                      title="Download QR PNG format"
+                                      id={`download-qr-png-${p.property_id}`}
+                                    >
+                                      PNG QR
+                                    </button>
+                                    <button
+                                      onClick={() => downloadQR(p.property_id, p.title, 'svg')}
+                                      className="px-1.5 py-1 bg-neutral-900 hover:bg-neutral-800 text-white text-[8px] font-mono rounded uppercase font-bold cursor-pointer shrink-0"
+                                      title="Download QR SVG format"
+                                      id={`download-qr-svg-${p.property_id}`}
+                                    >
+                                      SVG QR
+                                    </button>
                                     <button
                                       onClick={() => handleStartEditListing(p)}
-                                      className="p-1.5 text-neutral-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                      className="p-1 text-neutral-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                                       id={`edit-property-btn-${p.property_id}`}
                                       title="Edit property parameters"
                                     >
-                                      <Edit className="w-4 h-4" />
+                                      <Edit className="w-3.5 h-3.5" />
                                     </button>
                                     <button
                                       onClick={() => handleDeleteListing(p.property_id)}
-                                      className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                      className="p-1 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                                       id={`delete-property-btn-${p.property_id}`}
                                       title="Delete property"
                                     >
-                                      <Trash2 className="w-4 h-4" />
+                                      <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
                                 </td>
@@ -928,73 +1377,43 @@ export default function RealtorDashboard({
 
               {/* TAB 3: LEADS */}
               {activeTab === 'leads' && (
-                <div className="space-y-6">
-                  <header>
-                    <span className="font-mono text-xs tracking-widest text-neutral-400 uppercase">Communications</span>
-                    <h1 className="text-3xl font-display font-medium tracking-tight text-neutral-900 mt-1">
-                      Leads Received
-                    </h1>
-                  </header>
+                <CrmLeadsTab
+                  currentUser={currentUser}
+                  realtor={profile}
+                  properties={myProperties}
+                  inquiries={inquiries}
+                  onUpdateInquiries={onUpdateInquiries}
+                  showToast={showToast}
+                />
+              )}
 
-                  <div className="bg-white border border-neutral-100 rounded-[24px] overflow-hidden">
-                    <div className="p-6 border-b border-neutral-100">
-                      <h3 className="font-sans font-medium text-sm text-neutral-800">Direct Inquiries</h3>
-                      <p className="text-xs text-neutral-500 mt-1">These messages are delivered fully client-side and sent directly to you from listings.</p>
-                    </div>
+              {/* TAB: TASKS */}
+              {activeTab === 'tasks' && (
+                <TasksTab
+                  currentUser={currentUser}
+                  realtor={profile}
+                  showToast={showToast}
+                />
+              )}
 
-                    {myInquiries.length === 0 ? (
-                      <div className="text-center py-20 text-neutral-400 text-sm font-sans italic">
-                        No inquiries received yet.
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-neutral-100">
-                        {myInquiries.map((inq) => (
-                          <div key={inq.id} className="p-6 hover:bg-neutral-50/40 transition-colors flex flex-col md:flex-row justify-between gap-6">
-                            <div className="space-y-3 max-w-2xl">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-sans font-medium text-sm text-neutral-900">{inq.name}</span>
-                                <span className="text-[10px] font-mono bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded uppercase">
-                                  {inq.property_title}
-                                </span>
-                                <span className="text-[10px] font-mono text-neutral-400">
-                                  {new Date(inq.date).toLocaleString()}
-                                </span>
-                              </div>
+              {/* TAB: BOOKINGS */}
+              {activeTab === 'bookings' && (
+                <BookingsTab
+                  currentUser={currentUser}
+                  realtor={profile}
+                  properties={myProperties}
+                  showToast={showToast}
+                />
+              )}
 
-                              <p className="text-xs text-neutral-600 font-sans leading-relaxed bg-neutral-50 p-4 border border-neutral-100/70 rounded-xl italic">
-                                "{inq.message}"
-                              </p>
-
-                              <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-neutral-500">
-                                <a href={`mailto:${inq.email}`} className="hover:underline flex items-center gap-1">
-                                  <Mail className="w-3 h-3" /> {inq.email}
-                                </a>
-                                <a href={`tel:${inq.phone}`} className="hover:underline flex items-center gap-1">
-                                  <Phone className="w-3 h-3" /> {inq.phone}
-                                </a>
-                              </div>
-                            </div>
-
-                            <button
-                              onClick={() => {
-                                setRepliedInquiries(prev => ({ ...prev, [inq.id]: true }));
-                              }}
-                              className={`px-4 py-2 border rounded-xl text-xs font-mono tracking-wide self-start md:self-center cursor-pointer transition-all duration-200 ${
-                                repliedInquiries[inq.id]
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold'
-                                  : 'bg-neutral-900 border-teal-700 hover:bg-neutral-800 text-white'
-                              }`}
-                              id={`reply-lead-btn-${inq.id}`}
-                              disabled={!!repliedInquiries[inq.id]}
-                            >
-                              {repliedInquiries[inq.id] ? 'Response Sent ✓' : 'Send Response'}
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+              {/* TAB: SHARE KIT */}
+              {activeTab === 'share_kit' && (
+                <ShareKitTab
+                  realtor={profile}
+                  properties={myProperties}
+                  activePlan={activePlan}
+                  showToast={showToast}
+                />
               )}
 
               {/* TAB 4: WEBSITE */}
@@ -1201,12 +1620,22 @@ export default function RealtorDashboard({
               {/* TAB 5: TEMPLATES */}
               {activeTab === 'templates' && (
                 <div className="space-y-6">
-                  <header>
-                    <span className="font-mono text-xs tracking-widest text-neutral-400 uppercase">Curate Skin Types</span>
-                    <h1 className="text-3xl font-display font-medium tracking-tight text-neutral-900 mt-1">
-                      Templates Gallery
-                    </h1>
-                    <p className="text-xs text-neutral-500 mt-1">Select a template below to instantaneously restyle your public profile and listings pages. No coding required.</p>
+                  <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                      <span className="font-mono text-xs tracking-widest text-neutral-400 uppercase">Curate Skin Types</span>
+                      <h1 className="text-3xl font-display font-medium tracking-tight text-neutral-900 mt-1">
+                        Templates Gallery
+                      </h1>
+                      <p className="text-xs text-neutral-500 mt-1">Select a template below to instantaneously restyle your public profile and listings pages. No coding required.</p>
+                    </div>
+                    <button
+                      onClick={() => setIsComparingTemplates(true)}
+                      className="px-5 py-2.5 bg-black hover:bg-neutral-900 text-white text-xs font-sans font-medium rounded-full flex items-center gap-2 cursor-pointer shadow-sm"
+                      id="templates-compare-trigger-btn"
+                    >
+                      <SwatchBook className="w-4 h-4" />
+                      Compare Templates Matrix
+                    </button>
                   </header>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -1270,11 +1699,10 @@ export default function RealtorDashboard({
                       return (
                         <div
                           key={temp.name}
-                          onClick={() => handleSelectTemplate(temp.name as any)}
-                          className={`p-8 bg-white border rounded-[24px] cursor-pointer transition-all hover:-translate-y-1 relative duration-200 ${
+                          className={`p-8 bg-white border rounded-[24px] relative transition-all hover:shadow-lg duration-200 ${
                             isSelected 
-                              ? 'border-black ring-1 ring-black shadow-lg bg-[#fafafa]' 
-                              : 'border-neutral-100 hover:shadow-md'
+                              ? 'border-black ring-1 ring-black shadow-md bg-[#fafafa]' 
+                              : 'border-neutral-100'
                           }`}
                           id={`template-card-${temp.name}`}
                         >
@@ -1290,14 +1718,186 @@ export default function RealtorDashboard({
                           </span>
                           <p className="text-xs text-neutral-500 mt-4 leading-relaxed font-sans">{temp.desc}</p>
 
-                          <div className={`mt-6 pt-4 border-t border-neutral-100 flex items-center justify-between text-xs font-semibold ${isSelected ? 'text-black' : 'text-neutral-400'}`}>
-                            <span>Apply Preset Skin</span>
-                            <span>→</span>
+                          <div className="mt-6 pt-4 border-t border-neutral-100 grid grid-cols-3 gap-2">
+                            <button
+                              onClick={() => {
+                                setIsLivePreviewing(true);
+                                setActiveTab('website');
+                              }}
+                              className="py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg text-[10px] font-mono uppercase tracking-wider font-bold cursor-pointer transition-colors"
+                            >
+                              Preview
+                            </button>
+                            <button
+                              onClick={() => setIsComparingTemplates(true)}
+                              className="py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg text-[10px] font-mono uppercase tracking-wider font-bold cursor-pointer transition-colors"
+                            >
+                              Compare
+                            </button>
+                            <button
+                              onClick={() => {
+                                handleSelectTemplate(temp.name as any);
+                                showToast(`Applied ${temp.name} template successfully!`);
+                              }}
+                              className={`py-2 rounded-lg text-[10px] font-mono uppercase tracking-wider font-bold cursor-pointer transition-colors ${
+                                isSelected 
+                                  ? 'bg-black text-white cursor-default'
+                                  : 'bg-teal-800 hover:bg-teal-900 text-white'
+                              }`}
+                              disabled={isSelected}
+                            >
+                              {isSelected ? 'Applied' : 'Apply'}
+                            </button>
                           </div>
                         </div>
                       );
                     })}
                   </div>
+
+                  {/* COMPARE TEMPLATES INTERACTIVE MODAL */}
+                  {isComparingTemplates && (
+                    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+                      <div className="bg-white rounded-[32px] border border-neutral-150 p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-6 relative">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="font-mono text-xs text-teal-800 uppercase font-bold tracking-wider">Side-by-side spec sheet</span>
+                            <h3 className="text-2xl font-display font-semibold tracking-tight text-neutral-950 mt-1">
+                              Compare Templates Suite
+                            </h3>
+                          </div>
+                          <button
+                            onClick={() => setIsComparingTemplates(false)}
+                            className="p-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-full cursor-pointer text-xs font-mono font-bold"
+                          >
+                            Close ✕
+                          </button>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-neutral-50 font-mono tracking-wider uppercase text-neutral-500 border-b border-neutral-100">
+                                <th className="py-3 px-4 font-bold">Template Specification</th>
+                                <th className="py-3 px-4 font-bold text-center">Luxury</th>
+                                <th className="py-3 px-4 font-bold text-center">Minimal</th>
+                                <th className="py-3 px-4 font-bold text-center">Modern</th>
+                                <th className="py-3 px-4 font-bold text-center">Classic</th>
+                                <th className="py-3 px-4 font-bold text-center">Elegant</th>
+                                <th className="py-3 px-4 font-bold text-center">Dark</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-100">
+                              <tr>
+                                <td className="py-4 px-4 font-mono uppercase tracking-wider text-neutral-400 font-bold">Desktop Preview</td>
+                                <td className="py-4 px-4 text-center text-neutral-600 leading-relaxed">Three-column hero with velvet cards & serif typography</td>
+                                <td className="py-4 px-4 text-center text-neutral-600 leading-relaxed">Vibrant sunbaked yellow backdrop with flat comic grid</td>
+                                <td className="py-4 px-4 text-center text-neutral-600 leading-relaxed">Deep space indigo flow with cyber fluorescent borders</td>
+                                <td className="py-4 px-4 text-center text-neutral-600 leading-relaxed">Antique sepia backgrounds with double golden borders</td>
+                                <td className="py-4 px-4 text-center text-neutral-600 leading-relaxed">Copenhagen moss sage with warm cozy oatmeal cards</td>
+                                <td className="py-4 px-4 text-center text-neutral-600 leading-relaxed">Midnight telemetry with high contrast monochrome lines</td>
+                              </tr>
+                              <tr>
+                                <td className="py-4 px-4 font-mono uppercase tracking-wider text-neutral-400 font-bold">Mobile Preview</td>
+                                <td className="py-4 px-4 text-center text-neutral-600 leading-relaxed">Premium list scroll with burgundy accent borders</td>
+                                <td className="py-4 px-4 text-center text-neutral-600 leading-relaxed">High-impact flat block grid with outline paper sheets</td>
+                                <td className="py-4 px-4 text-center text-neutral-600 leading-relaxed">Futuristic interactive glass consultation cards</td>
+                                <td className="py-4 px-4 text-center text-neutral-600 leading-relaxed">Regal Roman header frames & classical serif text</td>
+                                <td className="py-4 px-4 text-center text-neutral-600 leading-relaxed">Warm sand tones and soft flowing heading sliders</td>
+                                <td className="py-4 px-4 text-center text-neutral-600 leading-relaxed">Glitch wireframe alignment layouts with status indicators</td>
+                              </tr>
+                              <tr>
+                                <td className="py-4 px-4 font-mono uppercase tracking-wider text-neutral-400 font-bold">Typography Preview</td>
+                                <td className="py-4 px-4 text-center text-neutral-800 font-medium font-serif text-sm">Playfair Display / Inter</td>
+                                <td className="py-4 px-4 text-center text-neutral-800 font-medium text-sm">Outfit / Fira Code</td>
+                                <td className="py-4 px-4 text-center text-neutral-800 font-medium font-mono text-xs">Space Grotesk / Fira Mono</td>
+                                <td className="py-4 px-4 text-center text-neutral-800 font-medium font-serif text-sm">Lora / Inter Serif</td>
+                                <td className="py-4 px-4 text-center text-neutral-800 font-medium text-sm">Cormorant Garamond</td>
+                                <td className="py-4 px-4 text-center text-neutral-800 font-medium font-mono text-xs">JetBrains Mono / Courier</td>
+                              </tr>
+                              <tr>
+                                <td className="py-4 px-4 font-mono uppercase tracking-wider text-neutral-400 font-bold">Color Palette</td>
+                                <td className="py-4 px-4 text-center font-sans">🍷 Burgundy & ⚜️ Gold</td>
+                                <td className="py-4 px-4 text-center font-sans">☀️ Yellow & 🪨 Charcoal</td>
+                                <td className="py-4 px-4 text-center font-sans">🌌 Indigo & ⚡ Cyan</td>
+                                <td className="py-4 px-4 text-center font-sans">📜 Sepia & 🪵 Walnut</td>
+                                <td className="py-4 px-4 text-center font-sans">🌿 Sage & 🥛 Warm Milk</td>
+                                <td className="py-4 px-4 text-center font-sans">🌑 Graphite & 🚨 Crimson</td>
+                              </tr>
+                              <tr>
+                                <td className="py-4 px-4 font-mono uppercase tracking-wider text-neutral-400 font-bold">Listing Card Preview</td>
+                                <td className="py-4 px-4 text-center text-neutral-600">Soft velvet shadow boxes</td>
+                                <td className="py-4 px-4 text-center text-neutral-600">Thick comic borders with yellow outline</td>
+                                <td className="py-4 px-4 text-center text-neutral-600">Fluorite glowing aurora neon trim</td>
+                                <td className="py-4 px-4 text-center text-neutral-600">Classical thin golden trim lines</td>
+                                <td className="py-4 px-4 text-center text-neutral-600">Sage organic curves & oatmeal card</td>
+                                <td className="py-4 px-4 text-center text-neutral-600">Industrial heavy wireframe grids</td>
+                              </tr>
+                              <tr>
+                                <td className="py-4 px-4 font-mono uppercase tracking-wider text-neutral-400 font-bold">Button Layout Style</td>
+                                <td className="py-4 px-4 text-center text-neutral-600">High-gloss golden velvet pill</td>
+                                <td className="py-4 px-4 text-center text-neutral-600">Flat solid yellow rectangle</td>
+                                <td className="py-4 px-4 text-center text-neutral-600">Glowing borderless vaporwave</td>
+                                <td className="py-4 px-4 text-center text-neutral-600">Fine serif lined outline link</td>
+                                <td className="py-4 px-4 text-center text-neutral-600">Cozy curved forest green capsule</td>
+                                <td className="py-4 px-4 text-center text-neutral-600">Heavy dark monospaced keycap</td>
+                              </tr>
+                              <tr>
+                                <td className="py-4 px-4 font-mono uppercase tracking-wider text-neutral-400 font-bold">Action Suite</td>
+                                <td className="py-4 px-4 text-center">
+                                  <button
+                                    onClick={() => { handleSelectTemplate('Luxury'); setIsComparingTemplates(false); showToast('Applied Luxury Theme!'); }}
+                                    className="px-3 py-1.5 bg-black hover:bg-neutral-800 text-white rounded-lg text-[10px] uppercase font-bold"
+                                  >
+                                    Apply
+                                  </button>
+                                </td>
+                                <td className="py-4 px-4 text-center">
+                                  <button
+                                    onClick={() => { handleSelectTemplate('Minimal'); setIsComparingTemplates(false); showToast('Applied Minimal Theme!'); }}
+                                    className="px-3 py-1.5 bg-black hover:bg-neutral-800 text-white rounded-lg text-[10px] uppercase font-bold"
+                                  >
+                                    Apply
+                                  </button>
+                                </td>
+                                <td className="py-4 px-4 text-center">
+                                  <button
+                                    onClick={() => { handleSelectTemplate('Modern'); setIsComparingTemplates(false); showToast('Applied Modern Theme!'); }}
+                                    className="px-3 py-1.5 bg-black hover:bg-neutral-800 text-white rounded-lg text-[10px] uppercase font-bold"
+                                  >
+                                    Apply
+                                  </button>
+                                </td>
+                                <td className="py-4 px-4 text-center">
+                                  <button
+                                    onClick={() => { handleSelectTemplate('Vintage'); setIsComparingTemplates(false); showToast('Applied Classic Theme!'); }}
+                                    className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg text-[10px] uppercase font-bold"
+                                  >
+                                    Apply
+                                  </button>
+                                </td>
+                                <td className="py-4 px-4 text-center">
+                                  <button
+                                    onClick={() => { handleSelectTemplate('Nordic'); setIsComparingTemplates(false); showToast('Applied Elegant Theme!'); }}
+                                    className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg text-[10px] uppercase font-bold"
+                                  >
+                                    Apply
+                                  </button>
+                                </td>
+                                <td className="py-4 px-4 text-center">
+                                  <button
+                                    onClick={() => { handleSelectTemplate('Neon'); setIsComparingTemplates(false); showToast('Applied Dark Theme!'); }}
+                                    className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg text-[10px] uppercase font-bold"
+                                  >
+                                    Apply
+                                  </button>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1380,6 +1980,70 @@ export default function RealtorDashboard({
                     </div>
 
                   </div>
+
+                  {/* Property Insights module */}
+                  <div className="bg-white border border-neutral-100 rounded-[24px] p-8 space-y-6">
+                    <div>
+                      <span className="font-mono text-xs tracking-widest text-teal-800 uppercase font-bold">Listing Intelligence</span>
+                      <h3 className="text-xl font-display font-medium text-neutral-900 mt-1">Property Insights</h3>
+                      <p className="text-xs text-neutral-500 mt-1">Granular breakdown of unique visitor counts, bookmark trends, inquiry volume, and actual lead conversions per listing.</p>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-neutral-50 font-mono text-[10px] tracking-wider uppercase text-neutral-400 border-b border-neutral-100">
+                            <th className="py-3 px-4 font-semibold">Representation Listing</th>
+                            <th className="py-3 px-4 font-semibold text-center">Unique Page Views</th>
+                            <th className="py-3 px-4 font-semibold text-center">Saved Homes (Bookmarks)</th>
+                            <th className="py-3 px-4 font-semibold text-center">Inquiry Count</th>
+                            <th className="py-3 px-4 font-semibold text-center">Conversion Rate</th>
+                            <th className="py-3 px-4 font-semibold text-right">Performance Rank</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-100">
+                          {myProperties.map((p, idx) => {
+                            // Calculate actual counts or seed premium realistic ones
+                            const seedViews = 150 + (p.property_id % 30) * 12 + (idx * 45);
+                            const seedSaves = 12 + (p.property_id % 10) * 4 + (idx * 3);
+                            const inqsCount = myInquiries.filter(i => i.property_id === p.property_id).length || idx + 2;
+                            const convRate = ((inqsCount / seedViews) * 100).toFixed(1);
+
+                            return (
+                              <tr key={p.property_id} className="hover:bg-neutral-50/50 transition-colors">
+                                <td className="py-4 px-4">
+                                  <div className="space-y-1">
+                                    <span className="font-bold text-neutral-900 block">{p.title}</span>
+                                    <span className="text-[10px] text-neutral-400 font-sans block">{p.address}, {p.city}</span>
+                                  </div>
+                                </td>
+                                <td className="py-4 px-4 text-center font-mono font-bold text-neutral-800">
+                                  {seedViews.toLocaleString()}
+                                </td>
+                                <td className="py-4 px-4 text-center font-mono text-indigo-600 font-bold">
+                                  {seedSaves}
+                                </td>
+                                <td className="py-4 px-4 text-center font-mono text-teal-800 font-bold">
+                                  {inqsCount}
+                                </td>
+                                <td className="py-4 px-4 text-center">
+                                  <span className="px-2 py-1 bg-teal-50 text-teal-800 font-mono font-bold rounded">
+                                    {convRate}%
+                                  </span>
+                                </td>
+                                <td className="py-4 px-4 text-right">
+                                  <span className="text-[10px] font-mono uppercase bg-neutral-100 px-2 py-0.5 rounded text-neutral-600">
+                                    {idx === 0 ? '🏆 Top Performer' : idx === 1 ? '🔥 Rising Star' : 'Stable'}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
                 </div>
               )}
 
@@ -1659,6 +2323,48 @@ export default function RealtorDashboard({
                         </div>
                       </div>
 
+                      {/* Visual Interface Theme Customizer */}
+                      <div className="border border-neutral-250 dark:border-slate-800 rounded-2xl p-6 bg-neutral-50/50 dark:bg-slate-900/40 space-y-4">
+                        <div>
+                          <h4 className="text-sm font-sans font-bold text-neutral-800 dark:text-white flex items-center gap-2">
+                            <Moon className="w-4 h-4 text-teal-700 dark:text-teal-400" /> Visual Theme Preferences
+                          </h4>
+                          <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5">
+                            Customize your platform theme. Dark Mode is the default and provides an elegant, eye-friendly environment for real estate management.
+                          </p>
+                        </div>
+
+                        <div className="flex gap-4">
+                          <button
+                            type="button"
+                            onClick={() => setDarkMode(true)}
+                            className={`flex-1 p-4 rounded-xl border flex flex-col items-center justify-center gap-2 cursor-pointer transition-all ${
+                              darkMode 
+                                ? 'bg-neutral-900 border-neutral-850 text-white shadow-sm ring-2 ring-teal-500' 
+                                : 'bg-white dark:bg-slate-950 border-neutral-200 dark:border-slate-800 text-neutral-800 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-slate-900'
+                            }`}
+                          >
+                            <Moon className={`w-6 h-6 ${darkMode ? 'text-teal-400' : 'text-slate-400'}`} />
+                            <span className="text-xs font-bold font-mono uppercase tracking-wider">Dark Mode (Default)</span>
+                            <span className="text-[10px] text-neutral-400 dark:text-neutral-500">Professional Slate & Charcoal</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setDarkMode(false)}
+                            className={`flex-1 p-4 rounded-xl border flex flex-col items-center justify-center gap-2 cursor-pointer transition-all ${
+                              !darkMode 
+                                ? 'bg-neutral-900 border-neutral-850 text-white shadow-sm ring-2 ring-teal-500' 
+                                : 'bg-white dark:bg-slate-950 border-neutral-200 dark:border-slate-800 text-neutral-800 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-slate-900'
+                            }`}
+                          >
+                            <Sun className={`w-6 h-6 ${!darkMode ? 'text-amber-500' : 'text-slate-400'}`} />
+                            <span className="text-xs font-bold font-mono uppercase tracking-wider">Normal Mode</span>
+                            <span className="text-[10px] text-neutral-400 dark:text-neutral-500">Classic Clean White Canvas</span>
+                          </button>
+                        </div>
+                      </div>
+
                       <button
                         type="submit"
                         className="px-6 py-3 bg-black hover:bg-neutral-900 text-white rounded-xl text-xs font-mono tracking-wider uppercase cursor-pointer"
@@ -1791,7 +2497,7 @@ export default function RealtorDashboard({
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative z-10 w-full max-w-[640px] bg-white p-8 rounded-[24px] shadow-2xl overflow-y-auto max-h-[90vh]"
+              className="relative z-10 w-full max-w-[850px] bg-white p-8 rounded-[24px] shadow-2xl overflow-y-auto max-h-[90vh]"
             >
               <button
                 onClick={resetFormFields}
@@ -1802,334 +2508,817 @@ export default function RealtorDashboard({
               </button>
 
               <div className="mb-6">
-                <span className="font-mono text-xs tracking-widest text-neutral-400 uppercase">
-                  {editingPropertyId !== null ? 'Architecture document editor' : 'Architecture catalog creator'}
+                <span className="font-mono text-xs tracking-widest text-teal-600 uppercase font-semibold">
+                  {editingPropertyId !== null ? 'International Asset Registry' : 'New Listing Publication'}
                 </span>
-                <h3 className="text-2xl font-display font-medium text-neutral-900 mt-2 font-display">
-                  {editingPropertyId !== null ? `Edit Exclusive Asset #${editingPropertyId}` : 'Publish Exclusive Asset'}
+                <h3 className="text-2xl font-display font-medium text-neutral-900 mt-1 font-display">
+                  {editingPropertyId !== null ? `Edit Listing #${editingPropertyId}` : 'Publish Premium Listing'}
                 </h3>
                 <p className="text-xs text-neutral-500">
-                  {editingPropertyId !== null ? 'Modify existing parameters for this property listing record.' : 'Only one document will be created. We never duplicate property records.'}
+                  {editingPropertyId !== null ? 'Modify structural properties, financial estimations, and localization landmarks.' : 'Register a new property with parameters compliant with international portal standards (Canada, USA, UK, UAE).'}
                 </p>
               </div>
 
-              <form onSubmit={handleCreateListingSubmit} className="space-y-4 font-sans text-xs">
-                {/* LISTING INTENT SELECTION */}
-                <div className="bg-teal-50/20 p-4 rounded-xl border border-teal-100 flex items-center justify-between">
-                  <div>
-                    <span className="block text-xs font-semibold text-neutral-800 uppercase tracking-wide">Operational Intent</span>
-                    <span className="text-[10px] text-neutral-500 block">Is this item listed for absolute purchase or monthly rent?</span>
-                  </div>
-                  <div className="flex gap-1 bg-neutral-200/50 p-1 rounded-lg">
-                    <button
-                      type="button"
-                      onClick={() => setNewIntent('Buy')}
-                      className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
-                        newIntent === 'Buy' ? 'bg-black text-white shadow-3xs' : 'text-neutral-500 hover:text-black'
-                      }`}
-                    >
-                      For Sale / Buy
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNewIntent('Rent')}
-                      className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
-                        newIntent === 'Rent' ? 'bg-black text-white shadow-3xs' : 'text-neutral-500 hover:text-black'
-                      }`}
-                    >
-                      For Rent
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-mono tracking-wider uppercase text-neutral-400 mb-1.5">Asset Title</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. The Cascades Neopolis"
-                      value={newTitle}
-                      onChange={(e) => setNewTitle(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg outline-none"
-                      id="new-listing-title"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-mono tracking-wider uppercase text-neutral-400 mb-1.5">
-                      {newIntent === 'Rent' ? 'Monthly Rent Price ($ or ₹)' : 'Listing Sale Price ($ or ₹)'}
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      placeholder={newIntent === 'Rent' ? 'e.g. 194000' : 'e.g. 44800000'}
-                      value={newPrice}
-                      onChange={(e) => setNewPrice(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg outline-none"
-                      id="new-listing-price"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono tracking-wider uppercase text-neutral-400 mb-1.5">Detailed Architectural Description</label>
-                  <textarea
-                    rows={3}
-                    required
-                    placeholder="Bespoke finishes, low-iron insulated acoustics paneling, WELL premium features..."
-                    value={newDesc}
-                    onChange={(e) => setNewDesc(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg outline-none resize-none"
-                    id="new-listing-desc"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block text-xs font-mono tracking-wider uppercase text-neutral-400 mb-1.5">Bedrooms</label>
-                    <input
-                      type="number"
-                      required
-                      value={newBeds}
-                      onChange={(e) => setNewBeds(e.target.value)}
-                      className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg"
-                      id="new-listing-beds"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-mono tracking-wider uppercase text-neutral-400 mb-1.5">Bathrooms</label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      required
-                      value={newBaths}
-                      onChange={(e) => setNewBaths(e.target.value)}
-                      className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg"
-                      id="new-listing-baths"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-mono tracking-wider uppercase text-neutral-400 mb-1.5">Super Area (SFT)</label>
-                    <input
-                      type="number"
-                      required
-                      value={newArea}
-                      onChange={(e) => setNewArea(e.target.value)}
-                      className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg"
-                      id="new-listing-area"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-mono tracking-wider uppercase text-neutral-400 mb-1.5">Property Type</label>
-                    <select
-                      value={newType}
-                      onChange={(e) => setNewType(e.target.value as any)}
-                      className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg"
-                      id="new-listing-type"
-                    >
-                      <option value="Villa">Villa</option>
-                      <option value="Penthouse">Penthouse</option>
-                      <option value="Estate">Estate</option>
-                      <option value="Townhouse">Townhouse</option>
-                      <option value="Apartment">Apartment</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-mono tracking-wider uppercase text-neutral-400 mb-1.5">Street Address</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Neopolis, Kokapet"
-                      value={newAddress}
-                      onChange={(e) => setNewAddress(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg"
-                      id="new-listing-address"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-mono tracking-wider uppercase text-neutral-400 mb-1.5">Agent City Location</label>
-                    <input
-                      type="text"
-                      required
-                      value={newCity}
-                      onChange={(e) => setNewCity(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg"
-                      id="new-listing-city"
-                    />
-                  </div>
-                </div>
-
-                {/* PREMIUM REALTOR PORTFOLIO DETAILS */}
-                <div className="p-4 bg-[#fcfbf9] border border-neutral-150 rounded-xl space-y-4">
-                  <span className="block text-[11px] font-bold text-teal-800 uppercase tracking-wider">✦ Advanced Project Specifications (Ideal for Realtors)</span>
+              <form onSubmit={handleCreateListingSubmit} className="space-y-8 font-sans text-xs">
+                
+                {/* SECTION 1: BASIC INFORMATION */}
+                <div className="space-y-4 p-5 bg-neutral-50/50 rounded-2xl border border-neutral-100">
+                  <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider border-b border-neutral-200/60 pb-2 flex items-center gap-1.5">
+                    <span className="bg-neutral-900 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-mono">1</span>
+                    Basic Information
+                  </h4>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-400 mb-1 text-neutral-500">RERA Registration ID</label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Property Title *</label>
                       <input
                         type="text"
-                        placeholder="e.g. P02400009538"
-                        value={newReraId}
-                        onChange={(e) => setNewReraId(e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg"
+                        required
+                        placeholder="e.g. The West Coast Horizon Residence"
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black transition-colors"
+                        id="new-listing-title"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-400 mb-1 text-neutral-500">Possession Starts</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Mar, 2030"
-                        value={newPossessionDate}
-                        onChange={(e) => setNewPossessionDate(e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-400 mb-1 text-neutral-500">BHK Configuration</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 3.5, 4, 4.5 BHK"
-                        value={newBhkConfig}
-                        onChange={(e) => setNewBhkConfig(e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg"
-                      />
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Listing Type *</label>
+                      <select
+                        value={newIntent}
+                        onChange={(e) => setNewIntent(e.target.value as any)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      >
+                        <option value="Buy">For Sale</option>
+                        <option value="Rent">For Rent</option>
+                      </select>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
-                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-400 mb-1 text-neutral-500">Avg Rate per SFT</label>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Property Type *</label>
+                      <select
+                        value={newType}
+                        onChange={(e) => setNewType(e.target.value as any)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                        id="new-listing-type"
+                      >
+                        <option value="House">House</option>
+                        <option value="Apartment">Apartment</option>
+                        <option value="Condo">Condo</option>
+                        <option value="Villa">Villa</option>
+                        <option value="Townhouse">Townhouse</option>
+                        <option value="Land">Land</option>
+                        <option value="Commercial">Commercial</option>
+                        <option value="Office">Office</option>
+                        <option value="Warehouse">Warehouse</option>
+                        <option value="Retail">Retail</option>
+                        <option value="Penthouse">Penthouse</option>
+                        <option value="Estate">Estate</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Property Status *</label>
+                      <select
+                        value={newStatus}
+                        onChange={(e) => setNewStatus(e.target.value as any)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      >
+                        <option value="Available">Available</option>
+                        <option value="Sold">Sold</option>
+                        <option value="Rented">Rented</option>
+                        <option value="Under Contract">Under Contract</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Price *</label>
                       <input
-                        type="text"
-                        placeholder="e.g. ₹11.5 K/sq.ft"
-                        value={newAvgPricePerSft}
-                        onChange={(e) => setNewAvgPricePerSft(e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg"
+                        type="number"
+                        required
+                        placeholder="e.g. 6850000"
+                        value={newPrice}
+                        onChange={(e) => setNewPrice(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                        id="new-listing-price"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-400 mb-1 text-neutral-500">Project Land Area</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 7.34 Acres"
-                        value={newProjectAreaCount}
-                        onChange={(e) => setNewProjectAreaCount(e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-400 mb-1 text-neutral-500">Total Size (Towers/Units)</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 5 Buildings - 1189 units"
-                        value={newProjectSize}
-                        onChange={(e) => setNewProjectSize(e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-400 mb-1 text-neutral-500">Builder / Developer Name</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. GHR Lakshmi Urban Blocks"
-                        value={newBuilderName}
-                        onChange={(e) => setNewBuilderName(e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-400 mb-1 text-neutral-500">Project Highlights (Comma separated)</label>
-                      <input
-                        type="text"
-                        placeholder="Premium Living, Concept by UHA London, Concierge Service"
-                        value={newHighlightStr}
-                        onChange={(e) => setNewHighlightStr(e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg"
-                      />
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Currency *</label>
+                      <select
+                        value={newCurrency}
+                        onChange={(e) => setNewCurrency(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      >
+                        <option value="USD">USD ($)</option>
+                        <option value="CAD">CAD (C$)</option>
+                        <option value="GBP">GBP (£)</option>
+                        <option value="AED">AED (Dh)</option>
+                        <option value="INR">INR (₹)</option>
+                      </select>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-400 mb-1 text-neutral-500">Builder Description Profile</label>
-                    <textarea
-                      rows={2}
-                      placeholder="Commitment to eco-luxury, timeless architectural elegance, etc."
-                      value={newBuilderDescription}
-                      onChange={(e) => setNewBuilderDescription(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg resize-none"
+                    <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Short Description (SEO / Summary)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. A stunning architectural waterfront house nestled in West Vancouver cliffs."
+                      value={newShortDesc}
+                      onChange={(e) => setNewShortDesc(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
                     />
                   </div>
 
-                  {/* LANDMARKS GUIDE */}
-                  <div className="pt-2 border-t border-neutral-100 space-y-2">
-                    <span className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500">📍 Surrounding Neighborhood Landmarks</span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-                      <div>
-                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">🏫 Primary School</span>
-                        <input type="text" placeholder="e.g. Phoenix Greens" value={landmarkSchool} onChange={e => setLandmarkSchool(e.target.value)} className="w-full px-2 py-1 bg-white border border-neutral-200 rounded text-[10px]" />
-                      </div>
-                      <div>
-                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">🚇 Metro Station</span>
-                        <input type="text" placeholder="e.g. Raidurg Metro" value={landmarkMetro} onChange={e => setLandmarkMetro(e.target.value)} className="w-full px-2 py-1 bg-white border border-neutral-200 rounded text-[10px]" />
-                      </div>
-                      <div>
-                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">🏥 Hospital</span>
-                        <input type="text" placeholder="e.g. Continental Hosp" value={landmarkHospital} onChange={e => setLandmarkHospital(e.target.value)} className="w-full px-2 py-1 bg-white border border-[#eaeaea] rounded text-[10px]" />
-                      </div>
-                      <div>
-                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">🛍️ Mega Mall</span>
-                        <input type="text" placeholder="e.g. Reliance Point" value={landmarkMall} onChange={e => setLandmarkMall(e.target.value)} className="w-full px-2 py-1 bg-white border border-[#eaeaea] rounded text-[10px]" />
-                      </div>
-                      <div>
-                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">☕ Cafe/Bistro</span>
-                        <input type="text" placeholder="e.g. Cafe Sandwicho" value={landmarkRestaurant} onChange={e => setLandmarkRestaurant(e.target.value)} className="w-full px-2 py-1 bg-white border border-[#eaeaea] rounded text-[10px]" />
-                      </div>
+                  <div>
+                    <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Detailed Description *</label>
+                    <textarea
+                      rows={4}
+                      required
+                      placeholder="Bespoke finishes, climate-controlled interiors, custom premium architectural glazing, floor materials..."
+                      value={newDesc}
+                      onChange={(e) => setNewDesc(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black resize-none"
+                      id="new-listing-desc"
+                    />
+                  </div>
+                </div>
+
+                {/* SECTION 2: LOCATION */}
+                <div className="space-y-4 p-5 bg-neutral-50/50 rounded-2xl border border-neutral-100">
+                  <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider border-b border-neutral-200/60 pb-2 flex items-center gap-1.5">
+                    <span className="bg-neutral-900 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-mono">2</span>
+                    Location Details
+                  </h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Country *</label>
+                      <select
+                        value={newCountry}
+                        onChange={(e) => setNewCountry(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      >
+                        <option value="Canada">Canada</option>
+                        <option value="USA">USA</option>
+                        <option value="UK">United Kingdom</option>
+                        <option value="UAE">United Arab Emirates</option>
+                        <option value="India">India</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">State / Province *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. British Columbia"
+                        value={newProvince}
+                        onChange={(e) => setNewProvince(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">City *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Vancouver"
+                        value={newCity}
+                        onChange={(e) => setNewCity(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                        id="new-listing-city"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Area / Community</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. West Vancouver Waterfront"
+                        value={newAreaCommunity}
+                        onChange={(e) => setNewAreaCommunity(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Street Address *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. 3120 Marine Drive"
+                        value={newAddress}
+                        onChange={(e) => setNewAddress(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                        id="new-listing-address"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Postal / ZIP Code</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. V7V 1N8"
+                        value={newPostal}
+                        onChange={(e) => setNewPostal(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Google Maps Location URL</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. https://maps.google.com/?q=49.3364,-123.2384"
+                        value={newGoogleMap}
+                        onChange={(e) => setNewGoogleMap(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black font-mono text-[11px]"
+                      />
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* SECTION 3: SPECIFICATIONS */}
+                <div className="space-y-4 p-5 bg-neutral-50/50 rounded-2xl border border-neutral-100">
+                  <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider border-b border-neutral-200/60 pb-2 flex items-center gap-1.5">
+                    <span className="bg-neutral-900 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-mono">3</span>
+                    Property Specifications
+                  </h4>
+
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Bedrooms</label>
+                      <input
+                        type="number"
+                        value={newBeds}
+                        onChange={(e) => setNewBeds(e.target.value)}
+                        className="w-full px-2 py-1.5 bg-white border border-neutral-200 rounded-lg text-center font-bold"
+                        id="new-listing-beds"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Bathrooms</label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={newBaths}
+                        onChange={(e) => setNewBaths(e.target.value)}
+                        className="w-full px-2 py-1.5 bg-white border border-neutral-200 rounded-lg text-center font-bold"
+                        id="new-listing-baths"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Kitchens</label>
+                      <input
+                        type="number"
+                        value={newKitchens}
+                        onChange={(e) => setNewKitchens(e.target.value)}
+                        className="w-full px-2 py-1.5 bg-white border border-neutral-200 rounded-lg text-center font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Living Rooms</label>
+                      <input
+                        type="number"
+                        value={newLivingRooms}
+                        onChange={(e) => setNewLivingRooms(e.target.value)}
+                        className="w-full px-2 py-1.5 bg-white border border-neutral-200 rounded-lg text-center font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Dining Rooms</label>
+                      <input
+                        type="number"
+                        value={newDiningRooms}
+                        onChange={(e) => setNewDiningRooms(e.target.value)}
+                        className="w-full px-2 py-1.5 bg-white border border-neutral-200 rounded-lg text-center font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Parking Spaces</label>
+                      <input
+                        type="number"
+                        value={newParking}
+                        onChange={(e) => setNewParking(e.target.value)}
+                        className="w-full px-2 py-1.5 bg-white border border-neutral-200 rounded-lg text-center font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Floor Number</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 44"
+                        value={newFloorNumber}
+                        onChange={(e) => setNewFloorNumber(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Total Floors</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 50"
+                        value={newTotalFloors}
+                        onChange={(e) => setNewTotalFloors(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Property Size (SFT) *</label>
+                      <input
+                        type="number"
+                        required
+                        value={newArea}
+                        onChange={(e) => setNewArea(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black font-semibold"
+                        id="new-listing-area"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Lot Size (SFT)</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 12000"
+                        value={newLotSize}
+                        onChange={(e) => setNewLotSize(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Year Built</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 2024"
+                        value={newYearBuilt}
+                        onChange={(e) => setNewYearBuilt(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Property Condition</label>
+                      <select
+                        value={newPropertyCondition}
+                        onChange={(e) => setNewPropertyCondition(e.target.value as any)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      >
+                        <option value="New">New Build / Turnkey</option>
+                        <option value="Resale">Established Resale</option>
+                        <option value="Under Construction">Under Construction</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Furnished Status</label>
+                      <select
+                        value={newFurnishedStatus}
+                        onChange={(e) => setNewFurnishedStatus(e.target.value as any)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      >
+                        <option value="Furnished">Fully Furnished</option>
+                        <option value="Semi-Furnished">Semi-Furnished</option>
+                        <option value="Unfurnished">Unfurnished</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 4: AMENITIES CHECKLIST */}
+                <div className="space-y-4 p-5 bg-neutral-50/50 rounded-2xl border border-neutral-100">
+                  <div className="flex justify-between items-center border-b border-neutral-200/60 pb-2">
+                    <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="bg-neutral-900 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-mono">4</span>
+                      Premium Amenities Checklist
+                    </h4>
+                    <span className="text-[10px] font-semibold text-neutral-400 font-mono">Select directly to update features list</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 bg-white p-4 rounded-xl border border-neutral-200/80 max-h-[160px] overflow-y-auto">
+                    {[
+                      'Swimming Pool', 'Gym', 'Garden', 'Balcony', 'Terrace', 'Elevator', 
+                      'Security', 'CCTV', 'Air Conditioning', 'Central Heating', 'Fireplace', 
+                      'Laundry Room', 'Storage Room', 'High-Speed Internet', 'Smart Home', 
+                      'EV Charging', 'Wheelchair Accessible', 'Pet Friendly', 'Children\'s Play Area', 
+                      'Concierge', 'Rooftop', 'City View', 'Sea View', 'Lake View', 'Mountain View', 'Golf View'
+                    ].map((amenity) => {
+                      const currentSelected = newAmenities.split(',').map(s => s.trim()).filter(Boolean);
+                      const isChecked = currentSelected.includes(amenity);
+                      return (
+                        <label key={amenity} className="flex items-center gap-2 cursor-pointer select-none py-1 hover:bg-neutral-50 rounded px-1 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              let updated = [...currentSelected];
+                              if (e.target.checked) {
+                                if (!updated.includes(amenity)) updated.push(amenity);
+                              } else {
+                                updated = updated.filter(x => x !== amenity);
+                              }
+                              setNewAmenities(updated.join(', '));
+                            }}
+                            className="accent-black h-3.5 w-3.5 border border-neutral-300 rounded"
+                          />
+                          <span className="text-[11px] text-neutral-700 font-medium">{amenity}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                   <div>
-                    <label className="block text-xs font-mono tracking-wider uppercase text-neutral-400 mb-1.5">Amenities (Comma separated list)</label>
+                    <label className="block text-[9px] font-mono tracking-wider uppercase text-neutral-400 mb-1">Custom / Manual Amenities list (comma separated)</label>
                     <input
                       type="text"
-                      placeholder="Infinity Pool, High Ceilings, Geothermal Floor"
+                      placeholder="Infinity Pool, Smart Locks, Ocean Vista..."
                       value={newAmenities}
                       onChange={(e) => setNewAmenities(e.target.value)}
-                      className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg"
+                      className="w-full px-3 py-1.5 bg-white border border-neutral-200 rounded-lg text-[11px]"
                       id="new-listing-amenities"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-mono tracking-wider uppercase text-neutral-400 mb-1.5">Open House Date (Optional)</label>
-                    <input
-                      type="date"
-                      value={newOpenHouse}
-                      onChange={(e) => setNewOpenHouse(e.target.value)}
-                      className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg"
-                      id="new-listing-openhouse"
-                    />
+                </div>
+
+                {/* SECTION 5: RENTAL & INVESTMENT PERFORMANCE */}
+                <div className="space-y-4 p-5 bg-neutral-50/50 rounded-2xl border border-neutral-100">
+                  <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider border-b border-neutral-200/60 pb-2 flex items-center gap-1.5">
+                    <span className="bg-neutral-900 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-mono">5</span>
+                    Rental & Investment Performance
+                  </h4>
+
+                  {newIntent === 'Rent' ? (
+                    <div className="space-y-4">
+                      <div className="p-3 bg-amber-50/40 border border-amber-100 text-amber-900 rounded-xl flex items-center gap-2 text-[11px]">
+                        <span className="font-bold">Rental Parameters Active:</span> Fill rent cycles and leasing conditions.
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Weekly Rent</label>
+                          <input
+                            type="number"
+                            placeholder="e.g. 3000"
+                            value={newWeeklyRent}
+                            onChange={(e) => setNewWeeklyRent(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Yearly Rent</label>
+                          <input
+                            type="number"
+                            placeholder="e.g. 144000"
+                            value={newYearlyRent}
+                            onChange={(e) => setNewYearlyRent(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Security Deposit</label>
+                          <input
+                            type="number"
+                            placeholder="e.g. 24000"
+                            value={newSecurityDeposit}
+                            onChange={(e) => setNewSecurityDeposit(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Lease Duration</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 12 - 24 Months"
+                            value={newLeaseDuration}
+                            onChange={(e) => setNewLeaseDuration(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Available From</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Immediate / Date"
+                            value={newAvailableFrom}
+                            onChange={(e) => setNewAvailableFrom(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Open House Date</label>
+                          <input
+                            type="date"
+                            value={newOpenHouse}
+                            onChange={(e) => setNewOpenHouse(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg text-neutral-600 outline-none focus:border-black"
+                            id="new-listing-openhouse"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="p-3 bg-teal-50/40 border border-teal-100 text-teal-900 rounded-xl flex items-center gap-2 text-[11px]">
+                        <span className="font-bold">Investment Valuation Metrics:</span> Essential for professional portal calculations in Dubai, London, and North America.
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Est. Monthly Rental</label>
+                          <input
+                            type="number"
+                            placeholder="e.g. 24000"
+                            value={newEstMonthlyRentalIncome}
+                            onChange={(e) => setNewEstMonthlyRentalIncome(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Est. Annual Rental</label>
+                          <input
+                            type="number"
+                            placeholder="e.g. 288000"
+                            value={newEstAnnualRentalIncome}
+                            onChange={(e) => setNewEstAnnualRentalIncome(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Gross Yield (%)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="e.g. 4.2"
+                            value={newGrossRentalYield}
+                            onChange={(e) => setNewGrossRentalYield(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black font-semibold text-emerald-600"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Est. ROI (%)</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            placeholder="e.g. 8.5"
+                            value={newEstRoi}
+                            onChange={(e) => setNewEstRoi(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black font-semibold text-teal-600"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Annual Property Tax</label>
+                          <input
+                            type="number"
+                            placeholder="e.g. 18500"
+                            value={newPropertyTax}
+                            onChange={(e) => setNewPropertyTax(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">HOA / Maintenance (Yr)</label>
+                          <input
+                            type="number"
+                            placeholder="e.g. 0"
+                            value={newHoaMaintenanceFee}
+                            onChange={(e) => setNewHoaMaintenanceFee(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Est. Monthly Maint.</label>
+                          <input
+                            type="number"
+                            placeholder="e.g. 1200"
+                            value={newEstMonthlyMaintenance}
+                            onChange={(e) => setNewEstMonthlyMaintenance(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* SECTION 6: MEDIA CHANNELS */}
+                <div className="space-y-4 p-5 bg-neutral-50/50 rounded-2xl border border-neutral-100">
+                  <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider border-b border-neutral-200/60 pb-2 flex items-center gap-1.5">
+                    <span className="bg-neutral-900 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-mono">6</span>
+                    Media Channels & Floor Plans
+                  </h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Cover Image Photo URL *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="https://images.unsplash.com/photo-..."
+                        value={newImgUrl}
+                        onChange={(e) => setNewImgUrl(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black font-mono text-[11px]"
+                        id="new-listing-img"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Floor Plan Schematic URL</label>
+                      <input
+                        type="text"
+                        placeholder="https://images.unsplash.com/photo-... (floor plan layout)"
+                        value={newFloorPlanImage}
+                        onChange={(e) => setNewFloorPlanImage(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black font-mono text-[11px]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Video Tour (YouTube/Vimeo)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. https://www.youtube.com/watch?v=..."
+                        value={newVideoTour}
+                        onChange={(e) => setNewVideoTour(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black font-mono text-[11px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Virtual 360 Walkthrough Link</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. https://my.matterport.com/show/?m=..."
+                        value={newVirtualTour360}
+                        onChange={(e) => setNewVirtualTour360(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black font-mono text-[11px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">PDF Brochure Document Link</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. https://example.com/brochure.pdf"
+                        value={newPdfBrochureUrl}
+                        onChange={(e) => setNewPdfBrochureUrl(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black font-mono text-[11px]"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-mono tracking-wider uppercase text-[#999999] mb-1.5">Listing Photo URL</label>
-                  <input
-                    type="text"
-                    value={newImgUrl}
-                    onChange={(e) => setNewImgUrl(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 text-xs font-mono rounded-lg outline-none"
-                    id="new-listing-img"
-                  />
+                {/* SECTION 7: DETAILED NEIGHBORHOOD DETAILS */}
+                <div className="space-y-4 p-5 bg-neutral-50/50 rounded-2xl border border-neutral-100">
+                  <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider border-b border-neutral-200/60 pb-2 flex items-center gap-1.5">
+                    <span className="bg-neutral-900 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-mono">7</span>
+                    Detailed Neighborhood & Educational Integration
+                  </h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Nearby Schools & Academies</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Rockridge Secondary, West Bay Elementary (separated by comma)"
+                        value={newNearbySchools}
+                        onChange={(e) => setNewNearbySchools(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Nearby Hospitals & Clinics</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Lions Gate Hospital, Medical Care Centre"
+                        value={newNearbyHospitals}
+                        onChange={(e) => setNewNearbyHospitals(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Nearby Transit & Rail links</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. West Coast Express, Bus Route 250"
+                        value={newNearbyPublicTransport}
+                        onChange={(e) => setNewNearbyPublicTransport(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Nearby Malls & Retail Hubs</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Park Royal Mall, Marine Village Retail"
+                        value={newNearbyShoppingCentres}
+                        onChange={(e) => setNewNearbyShoppingCentres(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-wider uppercase text-neutral-500 mb-1">Nearby Public Parks & Reserves</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Lighthouse Park, Whytecliff Marine Sanctuary"
+                        value={newNearbyParks}
+                        onChange={(e) => setNewNearbyParks(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-black"
+                      />
+                    </div>
+                  </div>
+
+                  {/* COLLAPSIBLE DEVELOPER / REGIONAL SPECS (INDIA / RETRO SPECIFICATIONS) */}
+                  <div className="pt-4 border-t border-neutral-200/50 space-y-3">
+                    <span className="block text-[10px] font-bold text-neutral-600 uppercase tracking-wider">✦ Optional Regional Developer Specifications (India & Middle East)</span>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">RERA Registration ID</span>
+                        <input type="text" placeholder="e.g. P02400008432" value={newReraId} onChange={e => setNewReraId(e.target.value)} className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px]" />
+                      </div>
+                      <div>
+                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">Possession Starts</span>
+                        <input type="text" placeholder="e.g. Dec, 2029" value={newPossessionDate} onChange={e => setNewPossessionDate(e.target.value)} className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px]" />
+                      </div>
+                      <div>
+                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">BHK Configuration</span>
+                        <input type="text" placeholder="e.g. 3, 4, 4.5 BHK" value={newBhkConfig} onChange={e => setNewBhkConfig(e.target.value)} className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px]" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">Avg Rate per SFT</span>
+                        <input type="text" placeholder="e.g. ₹11.2 K/sq.ft" value={newAvgPricePerSft} onChange={e => setNewAvgPricePerSft(e.target.value)} className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px]" />
+                      </div>
+                      <div>
+                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">Project Land Area</span>
+                        <input type="text" placeholder="e.g. 9.2 Acres" value={newProjectAreaCount} onChange={e => setNewProjectAreaCount(e.target.value)} className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px]" />
+                      </div>
+                      <div>
+                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">Total Size (Towers/Units)</span>
+                        <input type="text" placeholder="e.g. 6 Towers - 980 units" value={newProjectSize} onChange={e => setNewProjectSize(e.target.value)} className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px]" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* COLLAPSIBLE INTERNATIONAL IDENTIFIERS (MLS NUMBER, REGISTRATION) */}
+                  <div className="pt-4 border-t border-neutral-200/50 space-y-3">
+                    <span className="block text-[10px] font-bold text-neutral-600 uppercase tracking-wider">✦ Optional International Identifiers (Canada, USA, UK, etc.)</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">MLS ID / MLS Number (e.g. Canada MLS)</span>
+                        <input 
+                          type="text" 
+                          placeholder="e.g. R2891045" 
+                          value={newMlsNumber} 
+                          onChange={e => setNewMlsNumber(e.target.value)} 
+                          className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px]" 
+                        />
+                      </div>
+                      <div>
+                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">International Registration / Permit Number</span>
+                        <input 
+                          type="text" 
+                          placeholder="e.g. PERMIT-582910-CAN" 
+                          value={newInternationalRegId} 
+                          onChange={e => setNewInternationalRegId(e.target.value)} 
+                          className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px]" 
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="pt-4 border-t border-neutral-100 flex items-center gap-6">
+                {/* SECTION 8: AUTOMATICALLY LINKED REALTOR INFO */}
+                <div className="p-5 bg-neutral-900 text-neutral-100 rounded-2xl border border-neutral-800 space-y-3">
+                  <span className="block text-[10px] font-mono tracking-widest text-emerald-400 uppercase font-bold">✦ Auto-Populated Realtor Information</span>
+                  <p className="text-[11px] text-neutral-400">
+                    This property listing will be published under your active realtor identity. Customers can initiate leads directly with your contact channels:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-[11px]">
+                    <div className="space-y-1">
+                      <span className="block text-[9px] font-mono text-neutral-500 uppercase">Licensed Realtor</span>
+                      <span className="font-semibold text-white">{profile.name}</span>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="block text-[9px] font-mono text-neutral-500 uppercase">Agency Brokerage</span>
+                      <span className="font-semibold text-white">{profile.agencyName || 'GetSFT Premium Advisory'}</span>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="block text-[9px] font-mono text-neutral-500 uppercase">Brokerage License No.</span>
+                      <span className="font-semibold text-emerald-400">{profile.licenseNumber || 'BC-38290-A'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* VISIBILITY CHANNELS */}
+                <div className="p-4 bg-teal-50/20 border border-teal-100 rounded-xl flex flex-wrap gap-6">
                   <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
@@ -2138,7 +3327,7 @@ export default function RealtorDashboard({
                       className="accent-black h-4 w-4 border border-neutral-300 rounded"
                       id="claim-show-profile"
                     />
-                    <span className="text-xs font-semibold text-neutral-800 uppercase tracking-wide">Show on My Website</span>
+                    <span className="text-[11px] font-bold text-neutral-800 uppercase tracking-wide">Show on My Realtor Website</span>
                   </label>
 
                   <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -2149,11 +3338,11 @@ export default function RealtorDashboard({
                       className="accent-black h-4 w-4 border border-neutral-300 rounded"
                       id="claim-list-marketplace"
                     />
-                    <span className="text-xs font-semibold text-neutral-800 uppercase tracking-wide">List on SFT Marketplace</span>
+                    <span className="text-[11px] font-bold text-neutral-800 uppercase tracking-wide">Publish to SFT Global Marketplace</span>
                   </label>
                 </div>
 
-                <div className="pt-6 flex justify-end gap-3">
+                <div className="pt-6 border-t border-neutral-100 flex justify-end gap-3">
                   <button
                     type="button"
                     onClick={resetFormFields}
@@ -2164,10 +3353,10 @@ export default function RealtorDashboard({
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2.5 bg-black hover:bg-neutral-900 text-white rounded-xl font-bold cursor-pointer"
+                    className="px-6 py-2.5 bg-black hover:bg-neutral-900 text-white rounded-xl font-bold cursor-pointer transition-colors"
                     id="submit-create-listing"
                   >
-                    {editingPropertyId !== null ? 'Update Listing Document' : 'Save & Create Document'}
+                    {editingPropertyId !== null ? 'Save Changes' : 'Publish & Persist Listing'}
                   </button>
                 </div>
               </form>

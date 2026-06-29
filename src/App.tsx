@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Search, MapPin, Heart, ChevronRight, MessageSquare, ArrowRight, ShieldCheck, 
   Sparkles, Award, Star, Compass, Layout, Smartphone, Globe, Landmark, BadgeCheck,
-  UserCheck, LogIn, ExternalLink, RefreshCw
+  UserCheck, LogIn, ExternalLink, RefreshCw, Moon, Sun, UserIcon
 } from 'lucide-react';
-import { BrowserRouter, Routes, Route, useNavigate, useParams, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useParams, useLocation, Navigate, useSearchParams } from 'react-router-dom';
 
 import { Realtor, Property, Inquiry, User } from './types';
 import { loadState, saveState } from './mockData';
@@ -31,6 +31,27 @@ function AppContent() {
   // Global React States initialized from persistent loadState
   const [appState, setAppState] = useState(() => loadState());
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+
+  // Global Dark Mode Preference (Default to true)
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('getsft_dark_mode');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('getsft_dark_mode', darkMode.toString());
+    } catch (e) {}
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
   
   // Dialog Open Toggles
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -76,6 +97,25 @@ function AppContent() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Tracks if the user originated from getSFT.com
+  const [cameFromGetSFT, setCameFromGetSFT] = useState(() => {
+    try {
+      return sessionStorage.getItem('getsft_came_from') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const p = location.pathname;
+    if (p === '/' || p === '/agents' || p === '/wishlist' || p === '/dashboard' || p.startsWith('/dashboard')) {
+      setCameFromGetSFT(true);
+      try {
+        sessionStorage.setItem('getsft_came_from', 'true');
+      } catch (e) {}
+    }
+  }, [location.pathname]);
 
   // Filter properties where show_on_marketplace === true
   const marketplaceProperties = useMemo(() => {
@@ -265,8 +305,15 @@ function AppContent() {
   // Determine if we should render full-width for dashboard
   const isDashboardRoute = location.pathname.startsWith('/dashboard');
 
+  // Find active realtor from URL path to apply personalized header if on a realtor profile/property page
+  const realtorMatch = location.pathname.match(/^\/realtor\/([^/]+)/);
+  const activeRealtorId = realtorMatch ? realtorMatch[1] : null;
+  const activeRealtor = activeRealtorId 
+    ? appState.realtors.find((r: any) => r.id.toLowerCase() === activeRealtorId.toLowerCase()) 
+    : null;
+
   return (
-    <div className="min-h-screen bg-slate-50/50 selection:bg-teal-700/25 selection:text-teal-950 flex flex-col justify-between">
+    <div className={`min-h-screen bg-slate-50/50 selection:bg-teal-700/25 selection:text-teal-950 flex flex-col justify-between ${darkMode ? 'dark' : ''}`}>
       
       {/* Dynamic Blur topbar Menu */}
       {!isDashboardRoute && (
@@ -280,66 +327,110 @@ function AppContent() {
             {/* Brand logo */}
             <button 
               onClick={() => {
-                setFilterIntent('All');
-                navigate('/');
+                if (activeRealtor) {
+                  navigate(`/realtor/${activeRealtor.id}`);
+                } else {
+                  setFilterIntent('All');
+                  navigate('/');
+                }
               }}
-              className="flex items-center gap-1.5 font-display font-medium text-sm sm:text-lg text-black group cursor-pointer"
+              className="flex items-center gap-2 font-display font-medium text-sm sm:text-lg text-black group cursor-pointer"
               id="brand-logo-home"
             >
-              <div className="w-6.5 h-6.5 bg-neutral-900 hover:scale-97 transition-all rounded-md flex items-center justify-center text-white text-[11px] font-serif font-black">
-                sft
-              </div>
-              <span className="tracking-tight font-black hover:opacity-85 text-teal-750">getsft</span>
+              {activeRealtor ? (
+                <>
+                  <div className="w-7.5 h-7.5 bg-neutral-100 border border-neutral-200 hover:scale-97 transition-all rounded-full flex items-center justify-center text-lg select-none shadow-3xs">
+                    {activeRealtor.id === 'david' ? '🤵' : activeRealtor.id === 'sarah' ? '👩‍💼' : activeRealtor.id === 'julian' ? '👨‍💼' : '👤'}
+                  </div>
+                  <span className="tracking-tight font-black hover:opacity-85 text-teal-800 font-display font-semibold">
+                    {activeRealtor.name.split(' ')[0]}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <div className="w-6.5 h-6.5 bg-neutral-900 hover:scale-97 transition-all rounded-md flex items-center justify-center text-white text-[11px] font-serif font-black">
+                    sft
+                  </div>
+                  <span className="tracking-tight font-black hover:opacity-85 text-teal-750">getsft</span>
+                </>
+              )}
             </button>
 
             {/* Navigation Items (Visible when NOT on dashboard) */}
             {!isDashboardRoute && (
               <nav className="flex items-center gap-2.5 sm:gap-6 md:gap-8 text-[10px] sm:text-xs font-mono tracking-wider uppercase text-neutral-500">
-                <button 
-                  onClick={() => {
-                    setFilterIntent('Buy');
-                    setSearchTrigger(false);
-                    navigate('/');
-                  }}
-                  className={`hover:text-black transition-colors ${location.pathname === '/' && filterIntent === 'Buy' ? 'text-teal-700 font-bold border-b-2 border-teal-700 pb-0.5' : ''}`}
-                  id="nav-buy"
-                >
-                  Buy
-                </button>
-                <button 
-                  onClick={() => {
-                    setFilterIntent('Rent');
-                    setSearchTrigger(false);
-                    navigate('/');
-                  }}
-                  className={`hover:text-black transition-colors ${location.pathname === '/' && filterIntent === 'Rent' ? 'text-teal-700 font-bold border-b-2 border-teal-700 pb-0.5' : ''}`}
-                  id="nav-rent"
-                >
-                  Rent
-                </button>
-                <button 
-                  onClick={() => {
-                    navigate('/agents');
-                  }}
-                  className={`hover:text-black transition-colors ${location.pathname === '/agents' ? 'text-teal-700 font-bold border-b-2 border-teal-700 pb-0.5' : ''}`}
-                  id="nav-agents"
-                >
-                  Realtors
-                </button>
+                {activeRealtor ? (
+                  cameFromGetSFT && (
+                    <button 
+                      onClick={() => {
+                        setFilterIntent('All');
+                        navigate('/');
+                      }}
+                      className="hover:text-black transition-all duration-200 text-teal-750 font-bold flex items-center gap-1 normal-case tracking-normal text-xs bg-teal-50 hover:bg-teal-100 border border-teal-150 px-3.5 py-1.5 rounded-full shadow-xs cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                      id="back-to-getsft"
+                    >
+                      <span>←</span> Back to getSFT
+                    </button>
+                  )
+                ) : (
+                  <>
+                    <button 
+                      onClick={() => {
+                        setFilterIntent('Buy');
+                        setSearchTrigger(false);
+                        navigate('/');
+                      }}
+                      className={`hover:text-black transition-colors ${location.pathname === '/' && filterIntent === 'Buy' ? 'text-teal-700 font-bold border-b-2 border-teal-700 pb-0.5' : ''}`}
+                      id="nav-buy"
+                    >
+                      Buy
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setFilterIntent('Rent');
+                        setSearchTrigger(false);
+                        navigate('/');
+                      }}
+                      className={`hover:text-black transition-colors ${location.pathname === '/' && filterIntent === 'Rent' ? 'text-teal-700 font-bold border-b-2 border-teal-700 pb-0.5' : ''}`}
+                      id="nav-rent"
+                    >
+                      Rent
+                    </button>
+                    <button 
+                      onClick={() => {
+                        navigate('/agents');
+                      }}
+                      className={`hover:text-black transition-colors ${location.pathname === '/agents' ? 'text-teal-700 font-bold border-b-2 border-teal-700 pb-0.5' : ''}`}
+                      id="nav-agents"
+                    >
+                      Realtors
+                    </button>
+                  </>
+                )}
               </nav>
             )}
 
             {/* User Sign-In/Register Flow - Displaying only the dropdown selection */}
             <div className="flex items-center gap-2">
+              {/* Header Dark Mode/Light Mode Switcher */}
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-neutral-100 hover:bg-neutral-200 dark:bg-slate-850 dark:hover:bg-slate-800 text-neutral-800 dark:text-neutral-100 flex items-center justify-center cursor-pointer transition-all active:scale-95"
+                title={darkMode ? "Switch to Normal Mode" : "Switch to Dark Mode"}
+                id="header-theme-toggle-btn"
+              >
+                {darkMode ? <Moon className="w-4 h-4 text-teal-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
+              </button>
+
               {appState.currentUser ? (
                 <div className="relative">
                   <button
                     onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
-                    className="w-9 h-9 rounded-full bg-teal-50 border border-teal-100 hover:bg-teal-100 hover:border-teal-200 flex items-center justify-center text-lg select-none cursor-pointer transition-transform duration-100 active:scale-95 focus:outline-none"
+                    className="w-9 h-9 rounded-full bg-teal-50 dark:bg-slate-800 border border-teal-100 dark:border-slate-700 hover:bg-teal-100 dark:hover:bg-slate-700 flex items-center justify-center select-none cursor-pointer transition-transform duration-100 active:scale-95 focus:outline-none text-teal-850 dark:text-teal-300 font-mono font-bold text-xs"
                     id="user-profile-emoji-btn"
                     title={`${appState.currentUser.name} (${appState.currentUser.role})`}
                   >
-                    {appState.currentUser.role === 'realtor' ? '🤵' : '👤'}
+                    {appState.currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || <UserIcon className="w-3.5 h-3.5" />}
                   </button>
                   <AnimatePresence>
                     {isUserDropdownOpen && (
@@ -381,6 +472,20 @@ function AppContent() {
                             </button>
                           )}
 
+                          {/* Dark Mode toggle inside user dropdown */}
+                          <button
+                            onClick={() => {
+                              setDarkMode(!darkMode);
+                            }}
+                            className="w-full text-left px-4 py-2 hover:bg-neutral-50 text-neutral-700 flex items-center justify-between cursor-pointer font-medium"
+                            id="dropdown-darkmode-toggle"
+                          >
+                            <span className="flex items-center gap-2">🌓 App Theme</span>
+                            <span className="font-mono text-[9px] uppercase bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 px-1.5 py-0.5 rounded font-bold">
+                              {darkMode ? 'Dark Mode' : 'Light Mode'}
+                            </span>
+                          </button>
+                          
                           <button
                             onClick={() => {
                               setIsUserDropdownOpen(false);
@@ -446,10 +551,10 @@ function AppContent() {
 
                 {/* Home Search Card with buy/rent toggles */}
                 <section className="max-w-5xl mx-auto px-2">
-                  <div className="bg-[#ffffff] p-5 rounded-[24px] border border-neutral-150 shadow-xs flex flex-col gap-4">
+                  <div className="bg-white dark:bg-slate-900 p-5 rounded-[24px] border border-neutral-150 dark:border-slate-800 shadow-xs flex flex-col gap-4">
                     
                     {/* Transaction Mode Selector */}
-                    <div className="flex border-b border-neutral-100 pb-3 flex-wrap items-center justify-between gap-3">
+                    <div className="flex border-b border-neutral-100 dark:border-slate-800 pb-3 flex-wrap items-center justify-between gap-3">
                       <div className="flex gap-2">
                         <button
                           onClick={() => {
@@ -457,7 +562,7 @@ function AppContent() {
                             setSearchTrigger(true);
                           }}
                           className={`px-4 py-1.5 rounded-full font-mono text-[10px] uppercase tracking-wider transition-all cursor-pointer ${
-                            filterIntent === 'All' ? 'bg-neutral-900 text-white font-bold' : 'bg-neutral-50 text-[#666666] hover:bg-neutral-100'
+                            filterIntent === 'All' ? 'bg-neutral-900 dark:bg-teal-500 text-white dark:text-slate-950 font-bold' : 'bg-neutral-50 dark:bg-slate-950 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-slate-800 border border-neutral-200 dark:border-slate-850'
                           }`}
                           id="tab-all-intent"
                         >
@@ -469,7 +574,7 @@ function AppContent() {
                             setSearchTrigger(true);
                           }}
                           className={`px-4 py-1.5 rounded-full font-mono text-[10px] uppercase tracking-wider transition-all cursor-pointer ${
-                            filterIntent === 'Buy' ? 'bg-teal-850 text-white font-bold' : 'bg-neutral-50 text-[#666666] hover:bg-neutral-100'
+                            filterIntent === 'Buy' ? 'bg-teal-850 dark:bg-teal-600 text-white font-bold' : 'bg-neutral-50 dark:bg-slate-950 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-slate-800 border border-neutral-200 dark:border-slate-850'
                           }`}
                           id="tab-buy-intent"
                         >
@@ -481,7 +586,7 @@ function AppContent() {
                             setSearchTrigger(true);
                           }}
                           className={`px-4 py-1.5 rounded-full font-mono text-[10px] uppercase tracking-wider transition-all cursor-pointer ${
-                            filterIntent === 'Rent' ? 'bg-teal-855 text-white font-bold' : 'bg-neutral-50 text-[#666666] hover:bg-neutral-100'
+                            filterIntent === 'Rent' ? 'bg-teal-855 dark:bg-teal-500 text-white dark:text-slate-950 font-bold' : 'bg-neutral-50 dark:bg-slate-950 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-slate-800 border border-neutral-200 dark:border-slate-850'
                           }`}
                           id="tab-rent-intent"
                         >
@@ -489,7 +594,7 @@ function AppContent() {
                         </button>
                       </div>
 
-                      <span className="font-mono text-[10px] text-neutral-400 hidden sm:inline">
+                      <span className="font-mono text-[10px] text-neutral-700 dark:text-neutral-350 font-bold hidden sm:inline">
                         NO MIDDLE-TIER AGENCIES • DIRECT REPRESENTATION
                       </span>
                     </div>
@@ -497,78 +602,78 @@ function AppContent() {
                     {/* Filter fields */}
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                       <div className="space-y-1">
-                        <label className="block text-[9px] font-mono uppercase tracking-wide text-teal-850 font-bold">Preferred Location</label>
+                        <label className="block text-[9px] font-mono uppercase tracking-wide text-teal-850 dark:text-teal-400 font-bold">Preferred Location</label>
                         <input
                           type="text"
                           placeholder="Type preferred location/city..."
                           value={filterCity}
                           onChange={(e) => setFilterCity(e.target.value)}
-                          className="w-full px-3 py-2 bg-teal-50/20 hover:bg-teal-50/40 focus:bg-white border border-teal-100 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 rounded-xl text-xs font-sans outline-none transition-all placeholder:text-neutral-400 font-medium"
+                          className="w-full px-3 py-2 bg-teal-50/20 dark:bg-slate-950/40 hover:bg-teal-50/40 dark:hover:bg-slate-950/60 focus:bg-white dark:focus:bg-slate-950 border border-teal-100 dark:border-slate-800 focus:border-teal-600 dark:focus:border-teal-500 text-neutral-900 dark:text-white focus:ring-2 focus:ring-teal-100 dark:focus:ring-teal-900/40 rounded-xl text-xs font-sans outline-none transition-all placeholder:text-neutral-400 dark:placeholder:text-neutral-500 font-medium"
                           id="market-city"
                         />
                       </div>
 
                       <div className="space-y-1">
-                        <label className="block text-[9px] font-mono uppercase tracking-wide text-teal-850 font-bold">Property Type</label>
+                        <label className="block text-[9px] font-mono uppercase tracking-wide text-teal-850 dark:text-teal-400 font-bold">Property Type</label>
                         <select
                           value={filterType}
                           onChange={(e) => setFilterType(e.target.value)}
-                          className="w-full px-3 py-2 bg-teal-50/20 hover:bg-teal-50/40 focus:bg-white border border-teal-100 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 rounded-xl text-xs font-sans outline-none transition-all cursor-pointer font-medium"
+                          className="w-full px-3 py-2 bg-teal-50/20 dark:bg-slate-950/40 hover:bg-teal-50/40 dark:hover:bg-slate-950/60 focus:bg-white dark:focus:bg-slate-950 border border-teal-100 dark:border-slate-800 focus:border-teal-600 dark:focus:border-teal-500 text-neutral-900 dark:text-white focus:ring-2 focus:ring-teal-100 dark:focus:ring-teal-900/40 rounded-xl text-xs font-sans outline-none transition-all cursor-pointer font-medium"
                           id="market-type"
                         >
-                          <option value="All">All Structural Types</option>
-                          <option value="Estate">Estate</option>
-                          <option value="Villa">Villa</option>
-                          <option value="Penthouse">Penthouse</option>
-                          <option value="Townhouse">Townhouse</option>
+                          <option value="All" className="dark:bg-slate-950 text-neutral-900 dark:text-white">All Structural Types</option>
+                          <option value="Estate" className="dark:bg-slate-950 text-neutral-900 dark:text-white">Estate</option>
+                          <option value="Villa" className="dark:bg-slate-950 text-neutral-900 dark:text-white">Villa</option>
+                          <option value="Penthouse" className="dark:bg-slate-950 text-neutral-900 dark:text-white">Penthouse</option>
+                          <option value="Townhouse" className="dark:bg-slate-950 text-neutral-900 dark:text-white">Townhouse</option>
                         </select>
                       </div>
 
                       <div className="space-y-1">
-                        <label className="block text-[9px] font-mono uppercase tracking-wide text-teal-850 font-bold">Min Budget</label>
+                        <label className="block text-[9px] font-mono uppercase tracking-wide text-teal-850 dark:text-teal-400 font-bold">Min Budget</label>
                         <input
                           type="number"
                           placeholder="Min Price"
                           value={filterMinPrice}
                           onChange={(e) => setFilterMinPrice(e.target.value)}
-                          className="w-full px-3 py-2 bg-teal-50/20 hover:bg-teal-50/40 focus:bg-white border border-teal-100 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 rounded-xl text-xs font-sans outline-none transition-all placeholder:text-neutral-400 font-medium"
+                          className="w-full px-3 py-2 bg-teal-50/20 dark:bg-slate-950/40 hover:bg-teal-50/40 dark:hover:bg-slate-950/60 focus:bg-white dark:focus:bg-slate-950 border border-teal-100 dark:border-slate-800 focus:border-teal-600 dark:focus:border-teal-500 text-neutral-900 dark:text-white focus:ring-2 focus:ring-teal-100 dark:focus:ring-teal-900/40 rounded-xl text-xs font-sans outline-none transition-all placeholder:text-neutral-400 dark:placeholder:text-neutral-500 font-medium"
                           id="market-min-price"
                         />
                       </div>
 
                       <div className="space-y-1">
-                        <label className="block text-[9px] font-mono uppercase tracking-wide text-teal-850 font-bold">Max Budget</label>
+                        <label className="block text-[9px] font-mono uppercase tracking-wide text-teal-850 dark:text-teal-400 font-bold">Max Budget</label>
                         <input
                           type="number"
                           placeholder="Max Price"
                           value={filterMaxPrice}
                           onChange={(e) => setFilterMaxPrice(e.target.value)}
-                          className="w-full px-3 py-2 bg-teal-50/20 hover:bg-teal-50/40 focus:bg-white border border-teal-100 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 rounded-xl text-xs font-sans outline-none transition-all placeholder:text-neutral-400 font-medium"
+                          className="w-full px-3 py-2 bg-teal-50/20 dark:bg-slate-950/40 hover:bg-teal-50/40 dark:hover:bg-slate-950/60 focus:bg-white dark:focus:bg-slate-950 border border-teal-100 dark:border-slate-800 focus:border-teal-600 dark:focus:border-teal-500 text-neutral-900 dark:text-white focus:ring-2 focus:ring-teal-100 dark:focus:ring-teal-900/40 rounded-xl text-xs font-sans outline-none transition-all placeholder:text-neutral-400 dark:placeholder:text-neutral-500 font-medium"
                           id="market-max-price"
                         />
                       </div>
 
                       <div className="space-y-1 col-span-2 md:col-span-1">
-                        <label className="block text-[9px] font-mono uppercase tracking-wide text-teal-850 font-bold">Minimum Beds</label>
+                        <label className="block text-[9px] font-mono uppercase tracking-wide text-teal-850 dark:text-teal-400 font-bold">Minimum Beds</label>
                         <select
                           value={filterBeds}
                           onChange={(e) => setFilterBeds(e.target.value)}
-                          className="w-full px-3 py-2 bg-teal-50/20 hover:bg-teal-50/40 focus:bg-white border border-teal-100 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 rounded-xl text-xs font-sans outline-none transition-all cursor-pointer font-medium"
+                          className="w-full px-3 py-2 bg-teal-50/20 dark:bg-slate-950/40 hover:bg-teal-50/40 dark:hover:bg-slate-950/60 focus:bg-white dark:focus:bg-slate-950 border border-teal-100 dark:border-slate-800 focus:border-teal-600 dark:focus:border-teal-500 text-neutral-900 dark:text-white focus:ring-2 focus:ring-teal-100 dark:focus:ring-teal-900/40 rounded-xl text-xs font-sans outline-none transition-all cursor-pointer font-medium"
                           id="market-beds"
                         >
-                          <option value="Any">Any Beds</option>
-                          <option value="2">2+ Bedrooms</option>
-                          <option value="3">3+ Bedrooms</option>
-                          <option value="4">4+ Bedrooms</option>
+                          <option value="Any" className="dark:bg-slate-950 text-neutral-900 dark:text-white">Any Beds</option>
+                          <option value="2" className="dark:bg-slate-950 text-neutral-900 dark:text-white">2+ Bedrooms</option>
+                          <option value="3" className="dark:bg-slate-950 text-neutral-900 dark:text-white">3+ Bedrooms</option>
+                          <option value="4" className="dark:bg-slate-950 text-neutral-900 dark:text-white">4+ Bedrooms</option>
                         </select>
                       </div>
                     </div>
 
                     {/* Advanced filter parameters */}
-                    <div className="p-4 bg-neutral-50/65 rounded-xl border border-neutral-100/80 space-y-3.5">
+                    <div className="p-4 bg-neutral-50/65 dark:bg-slate-950/40 rounded-xl border border-neutral-100/80 dark:border-slate-800/80 space-y-3.5">
                       <div className="flex flex-col md:flex-row gap-4 justify-between">
                         <div className="space-y-1">
-                          <label className="block text-[9px] font-mono uppercase tracking-wide text-neutral-400">Minimum Bathrooms</label>
+                          <label className="block text-[9px] font-mono uppercase tracking-wide text-neutral-700 dark:text-neutral-350 font-bold">Minimum Bathrooms</label>
                           <div className="flex gap-2 mt-1">
                             {['Any', '2', '3', '5'].map((bVal) => (
                               <button
@@ -580,7 +685,7 @@ function AppContent() {
                                 className={`px-3 py-1 rounded text-xs font-sans transition-all cursor-pointer ${
                                   filterMinBaths === bVal 
                                     ? 'bg-teal-800 text-white font-bold' 
-                                    : 'bg-white hover:bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                    : 'bg-white dark:bg-slate-900 hover:bg-neutral-100 dark:hover:bg-slate-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-slate-800'
                                 }`}
                               >
                                 {bVal === 'Any' ? 'Any' : `${bVal}+ Baths`}
@@ -590,7 +695,7 @@ function AppContent() {
                         </div>
 
                         <div className="space-y-1 flex-1">
-                          <label className="block text-[9px] font-mono uppercase tracking-wide text-neutral-400">Curated Amenities Selection</label>
+                          <label className="block text-[9px] font-mono uppercase tracking-wide text-neutral-700 dark:text-neutral-350 font-bold">Curated Amenities Selection</label>
                           <div className="flex flex-wrap gap-1.5 mt-1">
                             {['Infinity Pool', 'Art Gallery Foyer', 'Custom Wine Room', 'Heated Floor slab', 'Passive Solar collection', 'Sky Garden Loft', 'Rooftop Lounge'].map((amenity) => {
                               const isSelected = selectedAmenities.includes(amenity);
@@ -606,8 +711,8 @@ function AppContent() {
                                   }}
                                   className={`px-2.5 py-1 rounded-full text-[10px] font-sans transition-all cursor-pointer border ${
                                     isSelected 
-                                      ? 'bg-neutral-900 border-neutral-900 text-white' 
-                                      : 'bg-white border-neutral-200 text-neutral-500 hover:text-black hover:border-neutral-300'
+                                      ? 'bg-neutral-900 border-neutral-900 text-white dark:bg-teal-500 dark:border-teal-500 dark:text-slate-950 font-bold' 
+                                      : 'bg-white dark:bg-slate-900 border-neutral-200 dark:border-slate-800 text-neutral-700 dark:text-neutral-300 hover:text-black dark:hover:text-white hover:border-neutral-300 dark:hover:border-slate-700'
                                   }`}
                                 >
                                   {isSelected ? '✓ ' : '+ '} {amenity}
@@ -668,7 +773,7 @@ function AppContent() {
                         return (
                           <div 
                             key={p.property_id}
-                            onClick={() => navigate(`/realtor/${p.owner_id}/property/${p.property_id}`)}
+                            onClick={() => navigate(`/property/${p.property_id}`)}
                             className="bg-white border border-[#eaeaea] rounded-[20px] overflow-hidden group hover:border-teal-700 hover:shadow-md transition-all duration-300 flex flex-col cursor-pointer"
                           >
                             <div className="relative aspect-3/2 overflow-hidden bg-neutral-100 shrink-0">
@@ -707,7 +812,7 @@ function AppContent() {
                                       e.stopPropagation();
                                       navigate(`/realtor/${hostRealtor.id}`);
                                     }}
-                                    className="flex items-center gap-1.5 text-[10px] font-mono text-neutral-400 hover:text-teal-700 hover:underline cursor-pointer"
+                                    className="flex items-center gap-1.5 text-[10px] font-mono text-neutral-500 hover:text-teal-700 hover:underline cursor-pointer font-bold"
                                     id={`host-realtor-link-${p.property_id}`}
                                   >
                                     <img
@@ -716,51 +821,51 @@ function AppContent() {
                                       referrerPolicy="no-referrer"
                                       className="w-3.5 h-3.5 rounded-full object-cover"
                                     />
-                                    <span>Represented by {hostRealtor.name.split(' ')[0]}</span>
+                                    <span>Represented by {hostRealtor.name}</span>
                                   </button>
                                 )}
 
                                 <div className="space-y-0.5">
-                                  <h3 className="font-display font-medium text-lg leading-tight text-neutral-900 group-hover:text-teal-750 transition-colors font-display">
+                                  <h3 className="font-display font-semibold text-lg leading-tight text-neutral-950 group-hover:text-teal-750 transition-colors font-display">
                                     {p.title}
                                   </h3>
-                                  <div className="flex items-center gap-1 text-xs text-neutral-400 font-mono">
+                                  <div className="flex items-center gap-1 text-xs text-neutral-500 font-mono font-medium">
                                     <MapPin className="w-3.5 h-3.5 text-teal-700" />
                                     <span>{p.address}, {p.city}</span>
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-3.5 py-1.5 text-xs text-neutral-600 font-sans border-y border-neutral-100/60 my-2">
+                                <div className="flex items-center gap-3.5 py-1.5 text-[13.5px] text-neutral-700 font-sans border-y border-neutral-100/60 my-2">
                                   <span className="flex items-center gap-1">
                                     <span className="font-bold text-neutral-950">{p.bedrooms}</span> Bed
                                   </span>
                                   <span className="text-neutral-250">•</span>
                                   <span className="flex items-center gap-1">
-                                    <span className="font-bold text-neutral-950">{p.bathrooms}</span> Bath
+                                    <span className="font-bold text-neutral-955">{p.bathrooms}</span> Bath
                                   </span>
                                   <span className="text-neutral-250">•</span>
                                   <span className="flex items-center gap-1 font-mono">
                                     <span className="font-bold text-neutral-955">{p.area.toLocaleString()}</span> sft
                                   </span>
                                   <span className="text-neutral-250">•</span>
-                                  <span className="text-[9px] uppercase font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded tracking-wide shrink-0 font-mono">
+                                  <span className="text-[10px] uppercase font-bold text-emerald-850 bg-emerald-50 px-2 py-0.5 rounded tracking-wide shrink-0 font-mono">
                                     {p.propertyType}
                                   </span>
                                 </div>
                                 
-                                <p className="text-[11px] text-neutral-500 line-clamp-2 leading-relaxed font-sans">{p.description}</p>
+                                <p className="text-[13.5px] text-neutral-600 leading-relaxed font-sans">{p.description}</p>
                               </div>
 
                               <div className="mt-4 pt-3 border-t border-neutral-100 flex items-center justify-between">
-                                <span className="font-display font-semibold text-lg text-neutral-950 block font-sans">
+                                <span className="font-display font-bold text-lg text-neutral-950 block font-sans">
                                   ${p.price.toLocaleString()}
-                                  {p.listingIntent === 'Rent' && <span className="text-[10px] font-mono text-neutral-400 font-normal">/mo</span>}
+                                  {p.listingIntent === 'Rent' && <span className="text-[10px] font-mono text-neutral-500 font-normal">/mo</span>}
                                 </span>
                                 
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigate(`/realtor/${p.owner_id}/property/${p.property_id}`);
+                                    navigate(`/property/${p.property_id}`);
                                   }}
                                   className="px-4 py-2 bg-teal-850 hover:bg-teal-900 text-white text-[10px] font-mono uppercase tracking-wider rounded transition-colors font-bold cursor-pointer"
                                   id={`inquire-property-btn-${p.property_id}`}
@@ -816,7 +921,7 @@ function AppContent() {
                             <span className="font-mono text-xs text-neutral-400">{rListings} listing{rListings !== 1 ? 's' : ''} on SFT</span>
                             <button
                               onClick={() => {
-                                navigate(`/realtor/${r.id}`);
+                                navigate(`/realtor/${r.id}?theme=custom`);
                               }}
                               className="px-4 py-2 bg-black hover:bg-neutral-900 text-white rounded-full text-[10px] font-mono uppercase tracking-wider cursor-pointer font-bold"
                               id={`view-realtor-site-${r.id}`}
@@ -890,7 +995,7 @@ function AppContent() {
                           <span className="text-xs font-mono text-neutral-400">{rListings.length} direct representations</span>
                           <button
                             onClick={() => {
-                              navigate(`/realtor/${r.id}`);
+                              navigate(`/realtor/${r.id}?theme=custom`);
                             }}
                             className="px-5 py-2 bg-neutral-950 text-white hover:bg-black rounded-full text-xs font-mono uppercase tracking-wider cursor-pointer"
                             id={`agents-view-${r.id}`}
@@ -949,6 +1054,8 @@ function AppContent() {
                     onUpdateRealtorProfile={handleUpdateRealtorProfile}
                     onUpdateInquiries={handleUpdateInquiries}
                     onLogout={handleLogout}
+                    darkMode={darkMode}
+                    setDarkMode={setDarkMode}
                   />
                 </motion.div>
               ) : (
@@ -1063,6 +1170,8 @@ function RealtorSiteWrapper({ appState, handleInquirySubmitted, handleToggleMark
 }) {
   const { realtorId } = useParams<{ realtorId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const forceNormalTheme = searchParams.get('theme') !== 'custom';
   
   const realtor = appState.realtors.find((r: Realtor) => r.id === realtorId) || appState.realtors[0];
   
@@ -1080,6 +1189,7 @@ function RealtorSiteWrapper({ appState, handleInquirySubmitted, handleToggleMark
         onPropertyClick={(id) => navigate(`/realtor/${realtor.id}/property/${id}`)}
         onTogglePublishMarketplace={handleToggleMarketplaceVisibility}
         isPreview={false}
+        forceNormalTheme={forceNormalTheme}
       />
     </motion.div>
   );

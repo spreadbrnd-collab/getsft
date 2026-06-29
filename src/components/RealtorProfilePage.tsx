@@ -15,6 +15,7 @@ interface RealtorProfilePageProps {
   onPropertyClick?: (propertyId: number) => void;
   onTogglePublishMarketplace?: (propertyId: number) => void;
   isPreview?: boolean;
+  forceNormalTheme?: boolean;
 }
 
 const THEME_CONFIGS: Record<string, {
@@ -217,6 +218,7 @@ export default function RealtorProfilePage({
   onPropertyClick,
   onTogglePublishMarketplace,
   isPreview = false,
+  forceNormalTheme = false,
 }: RealtorProfilePageProps) {
   // Website property search filters
   const [searchCity, setSearchCity] = useState('');
@@ -481,7 +483,7 @@ export default function RealtorProfilePage({
                             <MapPin className="w-3.5 h-3.5 text-[#dfb265]" />
                             {p.address}, {p.city}
                           </div>
-                          <p className="text-xs text-stone-600 mt-2 font-sans line-clamp-3 leading-relaxed">
+                          <p className="text-[13.5px] text-stone-600 mt-2 font-sans line-clamp-3 leading-relaxed">
                             {p.description}
                           </p>
                         </div>
@@ -492,7 +494,7 @@ export default function RealtorProfilePage({
                               ${p.price.toLocaleString()}
                             </span>
                             
-                            <div className="flex items-center gap-2 text-[10px] font-mono tracking-widest text-[#dfb265] font-bold uppercase bg-[#FAF6F0] px-3 py-1.5 rounded">
+                            <div className="flex items-center gap-2 text-[12px] font-mono tracking-widest text-[#dfb265] font-bold uppercase bg-[#FAF6F0] px-3 py-1.5 rounded">
                               <span>{p.bedrooms} Beds</span>
                               <span className="opacity-50">•</span>
                               <span>{p.bathrooms} Baths</span>
@@ -833,7 +835,7 @@ export default function RealtorProfilePage({
                             <div className="text-[10px] uppercase font-black tracking-widest bg-white border border-black px-2 py-1 inline-block">
                               📍 Loc: {p.address}, {p.city}
                             </div>
-                            <p className="text-xs font-bold font-sans text-neutral-800 line-clamp-3">
+                            <p className="text-[13.5px] font-bold font-sans text-neutral-800 line-clamp-3">
                               {p.description}
                             </p>
                           </div>
@@ -845,7 +847,7 @@ export default function RealtorProfilePage({
                               ${p.price.toLocaleString()}
                             </span>
                             
-                            <div className="bg-[#fb7185] border-2 border-black uppercase text-[10px] px-2.5 py-1.5 font-bold flex flex-wrap gap-1">
+                            <div className="bg-[#fb7185] border-2 border-black uppercase text-[12px] px-2.5 py-1.5 font-bold flex flex-wrap gap-1">
                               <span>{p.bedrooms} Beds</span>
                               <span>•</span>
                               <span>{p.bathrooms} Baths</span>
@@ -1190,7 +1192,7 @@ export default function RealtorProfilePage({
                             <MapPin className="w-3.5 h-3.5 text-cyan-400" />
                             {p.address}, {p.city}
                           </div>
-                          <p className="text-xs text-[#ced3ec] mt-2 leading-relaxed">
+                          <p className="text-[13.5px] text-[#ced3ec] mt-2 leading-relaxed">
                             {p.description}
                           </p>
                         </div>
@@ -1201,7 +1203,7 @@ export default function RealtorProfilePage({
                               ${p.price.toLocaleString()}
                             </span>
                             
-                            <div className="flex items-center gap-2 text-[10px] font-mono tracking-widest text-fuchsia-300 uppercase bg-[#200e47] border border-fuchsia-500/20 px-3 py-1.5 rounded-md">
+                            <div className="flex items-center gap-2 text-[12px] font-mono tracking-widest text-fuchsia-300 uppercase bg-[#200e47] border border-fuchsia-500/20 px-3 py-1.5 rounded-md">
                               <span>{p.bedrooms} Beds</span>
                               <span className="opacity-40">|</span>
                               <span>{p.bathrooms} Baths</span>
@@ -1366,7 +1368,8 @@ export default function RealtorProfilePage({
   };
 
   // Switch structure renderer based on active template selector
-  const activeTemplate = realtor.template || 'Minimal';
+  // If not in preview AND forceNormalTheme is true, force standard elegant professional Nordic template instead of customized theme
+  const activeTemplate = (isPreview || !forceNormalTheme) ? (realtor.template || 'Minimal') : 'Nordic';
   if (['Luxury', 'Vintage', 'Oasis', 'Nordic'].includes(activeTemplate)) {
     return renderLuxuryTemplate();
   } else if (['Modern', 'Neon'].includes(activeTemplate)) {

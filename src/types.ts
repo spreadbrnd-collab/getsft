@@ -6,19 +6,19 @@ export interface Property {
   price: number;
   bedrooms: number;
   bathrooms: number;
-  area: number; // square feet (SFT)
-  propertyType: 'Penthouse' | 'Villa' | 'Estate' | 'Townhouse' | 'Apartment';
+  area: number; // square feet (SFT) / Property Size
+  propertyType: 'House' | 'Apartment' | 'Condo' | 'Villa' | 'Townhouse' | 'Land' | 'Commercial' | 'Office' | 'Warehouse' | 'Retail' | 'Penthouse' | 'Estate';
   amenities: string[];
   address: string;
   city: string;
-  province: string;
-  postalCode: string;
+  province: string; // State / Province
+  postalCode: string; // Postal / ZIP Code
   images: string[];
   openHouseDate?: string;
-  status: 'Active' | 'Pending' | 'Sold';
+  status: 'Available' | 'Sold' | 'Rented' | 'Under Contract' | 'Active' | 'Pending'; // Property Status
   show_on_profile: boolean;
   show_on_marketplace: boolean;
-  listingIntent?: 'Buy' | 'Rent'; // Buy or Rent
+  listingIntent?: 'Buy' | 'Rent'; // Listing Type (For Sale / Buy vs For Rent)
   monthlyRentEstimate?: number; // Estimated or actual monthly rent
   highlights?: string[]; // Project highlights
   builderName?: string; // Developer / Builder
@@ -36,6 +36,63 @@ export interface Property {
     mall?: string;
     restaurant?: string;
   };
+
+  // Basic Information
+  currency?: string;
+  shortDescription?: string;
+
+  // Location
+  country?: string;
+  areaCommunity?: string;
+  googleMapLocation?: string;
+  nearbyLandmarksText?: string;
+
+  // Specifications
+  kitchens?: number;
+  livingRooms?: number;
+  diningRooms?: number;
+  parkingSpaces?: number;
+  floorNumber?: number;
+  totalFloors?: number;
+  propertySize?: number; // In sq. ft.
+  lotSize?: number; // In sq. ft. or Acres
+  yearBuilt?: number;
+  propertyCondition?: 'New' | 'Resale' | 'Under Construction';
+  furnishedStatus?: 'Furnished' | 'Semi-Furnished' | 'Unfurnished';
+
+  // Rental & Investment Information
+  monthlyRent?: number;
+  weeklyRent?: number;
+  yearlyRent?: number;
+  securityDeposit?: number;
+  leaseDuration?: string;
+  availableFrom?: string;
+
+  estMonthlyRentalIncome?: number;
+  estAnnualRentalIncome?: number;
+  grossRentalYield?: number; // %
+  estRoi?: number; // %
+  propertyTax?: number;
+  hoaMaintenanceFee?: number;
+  estMonthlyMaintenance?: number;
+
+  // Media
+  coverImage?: string;
+  videoTour?: string;
+  virtualTour360?: string;
+  floorPlanImage?: string;
+  pdfBrochureUrl?: string;
+
+  // Additional Details
+  nearbySchools?: string;
+  nearbyHospitals?: string;
+  nearbyPublicTransport?: string;
+  nearbyShoppingCentres?: string;
+  nearbyParks?: string;
+
+  // International Identifiers
+  mlsNumber?: string; // Canada / US MLS Number
+  internationalRegId?: string; // International Registration ID / License
 }
 
 export interface Realtor {
@@ -53,6 +110,9 @@ export interface Realtor {
   specializations: string[];
   template: 'Luxury' | 'Minimal' | 'Modern' | 'Vintage' | 'Oasis' | 'Techno' | 'Bauhaus' | 'Nordic' | 'Neon';
   customDomain?: string;
+  agencyName?: string;
+  licenseNumber?: string;
+  email?: string;
 }
 
 export interface Inquiry {
@@ -65,8 +125,38 @@ export interface Inquiry {
   phone: string;
   message: string;
   date: string;
-  status?: 'New' | 'Called' | 'Interested' | 'Not Interested' | 'No Answer';
+  status?: 'New' | 'Contacted' | 'Meeting Scheduled' | 'Offer Submitted' | 'Closed' | 'Lost' | 'Called' | 'Interested' | 'Not Interested' | 'No Answer';
+  budget?: string;
+  source?: 'Marketplace' | 'Personal Website' | 'Direct Link';
+  notes?: string[];
   remarksHistory?: { date: string; text: string }[];
+}
+
+export interface Task {
+  id: string;
+  realtorId: string;
+  leadId?: string;
+  leadName?: string;
+  title: string;
+  dueDate: string;
+  priority: 'Low' | 'Medium' | 'High';
+  status: 'Pending' | 'Completed';
+}
+
+export interface Booking {
+  id: string;
+  realtorId: string;
+  leadId?: string;
+  name: string; // Buyer Name
+  email: string;
+  phone: string;
+  date: string; // e.g., "2026-07-12"
+  time: string; // e.g., "3:00 PM"
+  meetingType: 'Virtual' | 'Phone Call' | 'Office Visit' | 'Property Showing';
+  propertyId?: number;
+  propertyTitle?: string;
+  status: 'Pending' | 'Accepted' | 'Rejected' | 'Rescheduled';
+  appointmentMessage?: string;
 }
 
 export interface User {
@@ -82,8 +172,11 @@ export type ActiveTab =
   | 'overview'
   | 'listings'
   | 'leads'
+  | 'tasks'
+  | 'bookings'
   | 'website'
   | 'templates'
   | 'analytics'
+  | 'share_kit'
   | 'settings'
   | 'billing';
