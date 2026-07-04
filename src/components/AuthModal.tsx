@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Mail, Lock, User as UserIcon, ShieldAlert } from 'lucide-react';
+import { X, Mail, Lock, User as UserIcon, ShieldAlert, Phone, ArrowLeft, CheckCircle } from 'lucide-react';
 import { User, Realtor } from '../types';
 import { 
   auth, 
-  googleProvider, 
-  signInWithPopup, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   db, 
   doc, 
   getDoc, 
-  setDoc 
+  setDoc,
+  sendPasswordResetEmail,
+  signOut
 } from '../firebase';
 
 interface AuthModalProps {
@@ -23,91 +23,64 @@ interface AuthModalProps {
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole = 'buyer' }: AuthModalProps) {
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [role, setRole] = useState<'buyer' | 'realtor'>(initialRole);
+  
+  // Registration & Login Fields
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [title, setTitle] = useState('Premium Real Estate Advisory');
+  
+  // Realtor Specific Optional Fields
+  const [title, setTitle] = useState('Licensed Luxury Advisor');
   const [city, setCity] = useState('Vancouver');
+  
+  // State indicators
   const [error, setError] = useState('');
+  const [isOpNotAllowed, setIsOpNotAllowed] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+  const [resetSuccess, setResetSuccess] = useState('');
 
   React.useEffect(() => {
     if (isOpen) {
       setRole(initialRole);
       setError('');
+      setIsOpNotAllowed(false);
+      setResetSuccess('');
+      setIsForgotPassword(false);
+      setIsLogin(true);
     }
   }, [isOpen, initialRole]);
 
-  const handleGoogleSignIn = async () => {
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError('');
+    setIsOpNotAllowed(false);
+    setResetSuccess('');
     setLoading(true);
 
-    // Set a safety timeout to detect stuck/unresponsive popup communication in iframes
-    const timeoutId = setTimeout(() => {
+    if (!email) {
+      setError('Please provide your email address.');
       setLoading(false);
-      setError('Google Sign-In is taking longer than expected. Since the application is running inside a preview iframe, your browser might be blocking third-party authorization storage/cookies. Please click the "Open in new tab" icon (↗) in the top-right corner of the screen to authenticate successfully.');
-    }, 8500);
+      return;
+    }
 
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      clearTimeout(timeoutId);
-      const fUser = result.user;
-      
-      const userRef = doc(db, 'users', fUser.uid);
-      const docSnap = await getDoc(userRef);
-      
-      let sessionUser: User;
-      
-      if (docSnap.exists()) {
-        sessionUser = docSnap.data() as User;
-        // Keep the role synchronized if they want to override
-        if (sessionUser.role !== role) {
-          sessionUser.role = role;
-          await setDoc(userRef, sessionUser);
-        }
-      } else {
-        sessionUser = {
-          id: fUser.uid,
-          name: fUser.displayName || fUser.email?.split('@')[0] || 'Google User',
-          email: fUser.email || '',
-          role: role,
-          savedPropertyIds: []
-        };
-        
-        if (role === 'realtor') {
-          sessionUser.realtorProfile = {
-            id: fUser.uid,
-            name: sessionUser.name,
-            title: 'Licensed Luxury Advisor',
-            profileImage: fUser.photoURL || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80',
-            coverImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
-            city: 'Vancouver',
-            phone: '+1 (604) 555-0100',
-            whatsapp: '16045550100',
-            bio: 'Representing rare locations and structural design integrity.',
-            experience: 5,
-            languages: ['English'],
-            specializations: ['Modernist Villas'],
-            template: 'Minimal'
-          };
-        }
-        
-        await setDoc(userRef, sessionUser);
-      }
-      
-      onAuthSuccess(sessionUser);
-      onClose();
+      await sendPasswordResetEmail(auth, email);
+      setResetSuccess('A password recovery email has been sent. Please check your inbox.');
     } catch (err: any) {
-      clearTimeout(timeoutId);
-      console.error('Google Sign-In Error:', err);
-      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
-        setError('The Google Auth popup was blocked by your browser. Please click the "Open in new tab" icon on the top right of the preview to complete authentication.');
-      } else {
-        setError(err.message || 'Failed to authenticate with Google.');
+      console.error('Password Reset Error:', err);
+      let errorMsg = err.message || 'Failed to send password recovery email.';
+      if (err.code === 'auth/user-not-found') {
+        errorMsg = 'No account associated with this email address.';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMsg = 'Please enter a valid email address.';
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setIsOpNotAllowed(true);
+        errorMsg = 'Firebase Email/Password authentication is disabled.';
       }
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -116,9 +89,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsOpNotAllowed(false);
     setLoading(true);
 
-    if (!email || !password || (!isLogin && !name)) {
+    if (!email || (!isForgotPassword && !password) || (!isLogin && !isForgotPassword && (!name || !phone))) {
       setError('Please complete all required fields.');
       setLoading(false);
       return;
@@ -135,11 +109,18 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
         let sessionUser: User;
         if (docSnap.exists()) {
           sessionUser = docSnap.data() as User;
+          if (sessionUser.role !== role) {
+            await signOut(auth);
+            setError(`This account is registered as a ${sessionUser.role === 'buyer' ? 'Buyer Profile' : 'Realtor Agent'}. Please switch to the correct role tab above to sign in.`);
+            setLoading(false);
+            return;
+          }
         } else {
           sessionUser = {
             id: fUser.uid,
             name: email.split('@')[0].toUpperCase(),
             email: email,
+            phone: '',
             role: role,
             savedPropertyIds: []
           };
@@ -151,12 +132,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
               profileImage: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80',
               coverImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
               city: 'Vancouver',
-              phone: '+1 (604) 555-0100',
-              whatsapp: '16045550100',
+              phone: '',
+              whatsapp: '',
               bio: 'Representing rare locations and structural design integrity.',
-              experience: 5,
+              experience: 1,
               languages: ['English'],
-              specializations: ['Modernist Villas'],
+              specializations: ['Luxury Estates'],
               template: 'Minimal'
             };
           }
@@ -173,6 +154,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
           id: fUser.uid,
           name: name,
           email: email,
+          phone: phone,
           role: role,
           savedPropertyIds: []
         };
@@ -181,16 +163,16 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
           const customRealtor: Realtor = {
             id: fUser.uid,
             name: name,
-            title: title || 'Luxury Realtor',
+            title: title || 'Licensed Luxury Advisor',
             profileImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=400&h=400&q=80',
             coverImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
             city: city,
-            phone: '+1 (555) ' + Math.floor(100 + Math.random() * 900) + '-' + Math.floor(1000 + Math.random() * 9000),
-            whatsapp: '15555555555',
-            bio: `Specializing in premium listings in ${city}. Dedicated to absolute architectural honesty, custom styling and tailored experiences.`,
-            experience: 5,
+            phone: phone,
+            whatsapp: phone.replace(/[^0-9]/g, ''),
+            bio: `Dedicated advisor representing rare locations and structural design integrity in ${city || 'Vancouver'}.`,
+            experience: 1,
             languages: ['English'],
-            specializations: ['Modern Architecture'],
+            specializations: ['Premium Real Estate'],
             template: 'Minimal'
           };
           sessionUser.realtorProfile = customRealtor;
@@ -212,6 +194,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
         errorMsg = 'An account with this email address already exists.';
       } else if (err.code === 'auth/weak-password') {
         errorMsg = 'Password must be at least 6 characters.';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMsg = 'Invalid email address format.';
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setIsOpNotAllowed(true);
+        errorMsg = 'Firebase Email/Password authentication is disabled.';
       }
       setError(errorMsg);
     } finally {
@@ -252,219 +239,289 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
 
             {/* Title Block */}
             <div className="mb-6">
-              <span className="font-mono text-xs tracking-widest text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded uppercase">
-                {role === 'realtor' ? 'Realtor' : 'User'}
+              <span className="font-mono text-xs tracking-widest text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded uppercase font-semibold">
+                {role === 'realtor' ? 'Realtor Hub' : 'Advisory Access'}
               </span>
-              <h2 className="text-3xl font-display font-medium tracking-tight text-neutral-950 mt-2">
-                {isLogin ? 'Welcome Back' : 'Create Estate Account'}
+              <h2 className="text-3xl font-display font-medium tracking-tight text-neutral-950 mt-2 font-display">
+                {isForgotPassword 
+                  ? 'Recover Password' 
+                  : isLogin 
+                    ? 'Welcome Back' 
+                    : 'Create Real Account'
+                }
               </h2>
-              <p className="text-xs font-sans text-neutral-500 mt-2">
-                {isLogin ? 'Access your private and secure advisory environment' : 'Unlock full Saved Lists, historic logs, and digital workspaces.'}
+              <p className="text-xs font-sans text-neutral-500 mt-2 leading-relaxed">
+                {isForgotPassword 
+                  ? 'Enter your registered email address below to receive password recovery instructions.' 
+                  : isLogin 
+                    ? 'Access your private and secure estate advisory and management platform.' 
+                    : 'Unlock authentic listing curation, lead analytics, and real estate workspace.'
+                }
               </p>
             </div>
 
-            {/* Exclusive Segmented Role Switcher */}
-            <div className="grid grid-cols-2 p-1.5 bg-neutral-100 rounded-xl mb-6 border border-neutral-200">
-              <button
-                type="button"
-                onClick={() => setRole('buyer')}
-                className={`py-2 text-xs font-sans font-semibold rounded-lg transition-all duration-200 ${
-                  role === 'buyer'
-                    ? 'bg-neutral-950 text-white shadow-sm'
-                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/50'
-                }`}
-                id="select-buyer-role"
-              >
-                ● User
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('realtor')}
-                className={`py-2 text-xs font-sans font-semibold rounded-lg transition-all duration-200 ${
-                  role === 'realtor'
-                    ? 'bg-neutral-950 text-white shadow-sm'
-                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/50'
-                }`}
-                id="select-realtor-role"
-              >
-                ■ Realtor
-              </button>
-            </div>
-
-            {/* Quick-select Test Realtor Accounts */}
-            {isLogin && role === 'realtor' && (
-              <div className="bg-neutral-50 border border-neutral-200 p-4 rounded-xl mb-6 space-y-2.5">
-                <span className="text-[10px] font-mono font-bold text-neutral-500 uppercase tracking-widest block">
-                  📂 AUTHORIZED LIVE REALTORS:
-                </span>
-                <div className="space-y-2 font-mono text-[11px] text-neutral-700">
-                  <div className="flex justify-between items-center bg-white p-2 rounded border border-neutral-100">
-                    <div>
-                      <span className="font-sans font-bold text-neutral-900 block">David Vandervelde</span>
-                      <span className="text-[10px] text-neutral-500">david@getsft.com</span>
-                    </div>
-                    <code className="bg-neutral-100 px-1.5 py-0.5 rounded text-neutral-800 text-[10px]">password123</code>
-                  </div>
-                  <div className="flex justify-between items-center bg-white p-2 rounded border border-neutral-100">
-                    <div>
-                      <span className="font-sans font-bold text-neutral-900 block">Sarah Sterling</span>
-                      <span className="text-[10px] text-neutral-500">sarah@getsft.com</span>
-                    </div>
-                    <code className="bg-neutral-100 px-1.5 py-0.5 rounded text-neutral-800 text-[10px]">password123</code>
-                  </div>
-                </div>
-                <div className="text-[9px] text-neutral-400 leading-snug">
-                  * Live Firebase-backed accounts. Use these credentials to sign in directly! Password is <code className="font-bold">password123</code>.
-                </div>
+            {/* Exclusive Segmented Role Switcher (Hidden in Forgot Password view) */}
+            {!isForgotPassword && (
+              <div className="grid grid-cols-2 p-1.5 bg-neutral-100 rounded-xl mb-6 border border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => setRole('buyer')}
+                  className={`py-2 text-xs font-sans font-semibold rounded-lg transition-all duration-200 ${
+                    role === 'buyer'
+                      ? 'bg-neutral-950 text-white shadow-sm'
+                      : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/50'
+                  }`}
+                  id="select-buyer-role"
+                >
+                  ● Buyer Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('realtor')}
+                  className={`py-2 text-xs font-sans font-semibold rounded-lg transition-all duration-200 ${
+                    role === 'realtor'
+                      ? 'bg-neutral-950 text-white shadow-sm'
+                      : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/50'
+                  }`}
+                  id="select-realtor-role"
+                >
+                  ■ Realtor Agent
+                </button>
               </div>
             )}
 
-            {/* Error messaging */}
+            {/* Status alerts */}
             {error && (
-              <div className="flex items-center gap-2 p-3.5 bg-[#fdf2f2] text-red-700 rounded-xl mb-6 text-xs font-sans">
-                <ShieldAlert className="w-4 h-4 shrink-0" />
-                <span className="break-words">{error}</span>
+              <div className="flex flex-col gap-2 p-4 bg-[#fdf2f2] text-red-700 rounded-xl mb-6 text-xs font-sans border border-red-100">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 shrink-0 text-red-600" />
+                  <span className="font-semibold break-words">{error}</span>
+                </div>
+                {isOpNotAllowed && (
+                  <div className="mt-2.5 pt-2.5 border-t border-red-200/60 text-neutral-800 space-y-2 leading-relaxed">
+                    <p className="font-semibold text-red-800">How to activate registration & login:</p>
+                    <p>
+                      Your real Firebase database is active, but the <strong>Email/Password Sign-in Provider</strong> is not enabled yet in your Firebase console. Follow these 3 simple steps to enable it:
+                    </p>
+                    <ol className="list-decimal list-inside space-y-1.5 pl-1 text-[11px] text-neutral-700">
+                      <li>Open the <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-semibold hover:text-blue-800">Firebase Console</a></li>
+                      <li>Select your project: <code className="bg-neutral-100 text-neutral-900 px-1 py-0.5 rounded font-mono">gen-lang-client-0388026506</code></li>
+                      <li>Go to <strong>Build &gt; Authentication &gt; Sign-in method</strong>, click <strong>Add new provider</strong>, select <strong>Email/Password</strong>, toggle <strong>Enable</strong>, and click <strong>Save</strong>.</li>
+                    </ol>
+                    <p className="text-[11px] text-neutral-500 italic pt-1">
+                      After saving, you can instantly register new accounts here without refreshing the page!
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
+            {resetSuccess && (
+              <div className="flex items-center gap-2 p-3.5 bg-emerald-50 text-emerald-850 rounded-xl mb-6 text-xs font-sans">
+                <CheckCircle className="w-4 h-4 shrink-0 text-emerald-750" />
+                <span className="break-words font-medium">{resetSuccess}</span>
+              </div>
+            )}
+
+            {/* Forgot Password View */}
+            {isForgotPassword ? (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
                 <div>
                   <label className="block text-xs font-mono tracking-wider uppercase text-gray-400 mb-1.5">
-                    Full Name
+                    Email Address
                   </label>
                   <div className="relative">
-                    <UserIcon className="absolute left-4 top-3.5 h-4.5 w-4.5 text-gray-400" />
+                    <Mail className="absolute left-4 top-3.5 h-4.5 w-4.5 text-gray-400" />
                     <input
-                      type="text"
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      placeholder="David Vandervelde"
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="Enter your email"
                       className="w-full pl-11 pr-4 py-3 bg-[#fdfdfd] border border-[#e5e5e5] rounded-xl text-sm font-sans outline-none focus:border-black focus:ring-1 focus:ring-black transition-all duration-200"
                       required
-                      id="auth-name-input"
+                      id="forgot-password-email-input"
                     />
                   </div>
                 </div>
-              )}
 
-              <div>
-                <label className="block text-xs font-mono tracking-wider uppercase text-gray-400 mb-1.5">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-3.5 h-4.5 w-4.5 text-gray-400" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="david@getsft.com"
-                    className="w-full pl-11 pr-4 py-3 bg-[#fdfdfd] border border-[#e5e5e5] rounded-xl text-sm font-sans outline-none focus:border-black focus:ring-1 focus:ring-black transition-all duration-200"
-                    required
-                    id="auth-email-input"
-                  />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 bg-black hover:bg-neutral-900 disabled:bg-neutral-400 text-white rounded-xl text-sm font-sans font-medium transition-all duration-200 mt-4 active:scale-[0.99] shadow-sm cursor-pointer"
+                  id="forgot-password-submit"
+                >
+                  {loading ? 'Sending Request...' : 'Send Recovery Link'}
+                </button>
+
+                <div className="text-center pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsForgotPassword(false);
+                      setError('');
+                      setResetSuccess('');
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs font-mono text-gray-500 hover:text-black hover:underline transition-all duration-150"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" /> Back to Login
+                  </button>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono tracking-wider uppercase text-gray-400 mb-1.5">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-3.5 h-4.5 w-4.5 text-gray-400" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-11 pr-4 py-3 bg-[#fdfdfd] border border-[#e5e5e5] rounded-xl text-sm font-sans outline-none focus:border-black focus:ring-1 focus:ring-black transition-all duration-200"
-                    required
-                    id="auth-password-input"
-                  />
-                </div>
-              </div>
-
-              {!isLogin && role === 'realtor' && (
-                <div className="grid grid-cols-2 gap-3 pt-1">
+              </form>
+            ) : (
+              /* Regular Auth form */
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Full Name (Sign Up only) */}
+                {!isLogin && (
                   <div>
                     <label className="block text-xs font-mono tracking-wider uppercase text-gray-400 mb-1.5">
-                      Professional Title
+                      Full Name
                     </label>
+                    <div className="relative">
+                      <UserIcon className="absolute left-4 top-3.5 h-4.5 w-4.5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        placeholder="e.g. John Doe"
+                        className="w-full pl-11 pr-4 py-3 bg-[#fdfdfd] border border-[#e5e5e5] rounded-xl text-sm font-sans outline-none focus:border-black focus:ring-1 focus:ring-black transition-all duration-200"
+                        required
+                        id="auth-name-input"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Email Address */}
+                <div>
+                  <label className="block text-xs font-mono tracking-wider uppercase text-gray-400 mb-1.5">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-3.5 h-4.5 w-4.5 text-gray-400" />
                     <input
-                      type="text"
-                      value={title}
-                      onChange={e => setTitle(e.target.value)}
-                      placeholder="e.g. Luxury Broker"
-                      className="w-full px-4 py-3 bg-[#fdfdfd] border border-[#e5e5e5] rounded-xl text-sm font-sans outline-none focus:border-black transition-all duration-200"
-                      id="auth-professional-title"
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="e.g. name@example.com"
+                      className="w-full pl-11 pr-4 py-3 bg-[#fdfdfd] border border-[#e5e5e5] rounded-xl text-sm font-sans outline-none focus:border-black focus:ring-1 focus:ring-black transition-all duration-200"
+                      required
+                      id="auth-email-input"
                     />
                   </div>
+                </div>
+
+                {/* Phone Number (Sign Up only) */}
+                {!isLogin && (
                   <div>
                     <label className="block text-xs font-mono tracking-wider uppercase text-gray-400 mb-1.5">
-                      Target City
+                      Phone Number
                     </label>
+                    <div className="relative">
+                      <Phone className="absolute left-4 top-3.5 h-4.5 w-4.5 text-gray-400" />
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        placeholder="e.g. +1 (604) 555-0199"
+                        className="w-full pl-11 pr-4 py-3 bg-[#fdfdfd] border border-[#e5e5e5] rounded-xl text-sm font-sans outline-none focus:border-black focus:ring-1 focus:ring-black transition-all duration-200"
+                        required
+                        id="auth-phone-input"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Password */}
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-xs font-mono tracking-wider uppercase text-gray-400">
+                      Password
+                    </label>
+                    {isLogin && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsForgotPassword(true);
+                          setError('');
+                        }}
+                        className="text-[11px] font-mono text-gray-400 hover:text-black hover:underline"
+                        id="auth-forgot-password-link"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-3.5 h-4.5 w-4.5 text-gray-400" />
                     <input
-                      type="text"
-                      value={city}
-                      onChange={e => setCity(e.target.value)}
-                      placeholder="e.g. Toronto"
-                      className="w-full px-4 py-3 bg-[#fdfdfd] border border-[#e5e5e5] rounded-xl text-sm font-sans outline-none focus:border-black transition-all duration-200"
-                      id="auth-target-city"
+                      type="password"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-11 pr-4 py-3 bg-[#fdfdfd] border border-[#e5e5e5] rounded-xl text-sm font-sans outline-none focus:border-black focus:ring-1 focus:ring-black transition-all duration-200"
+                      required
+                      id="auth-password-input"
                     />
                   </div>
                 </div>
-              )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3.5 bg-black hover:bg-neutral-900 disabled:bg-neutral-400 text-white rounded-xl text-sm font-sans font-medium transition-all duration-200 mt-4 active:scale-[0.99] shadow-sm cursor-pointer"
-                id="auth-submit-button"
-              >
-                {loading ? 'Processing...' : isLogin ? 'Authenticate' : `Join SFT as ${role === 'realtor' ? 'Realtor' : 'Buyer'}`}
-              </button>
+                {/* Realtor Specific Details (Sign Up only) */}
+                {!isLogin && role === 'realtor' && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="block text-xs font-mono tracking-wider uppercase text-gray-400 mb-1.5">
+                        Professional Title
+                      </label>
+                      <input
+                        type="text"
+                        value={title}
+                        onChange={e => setTitle(e.target.value)}
+                        placeholder="e.g. Luxury Broker"
+                        className="w-full px-4 py-3 bg-[#fdfdfd] border border-[#e5e5e5] rounded-xl text-sm font-sans outline-none focus:border-black transition-all duration-200"
+                        id="auth-professional-title"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-mono tracking-wider uppercase text-gray-400 mb-1.5">
+                        Target City
+                      </label>
+                      <input
+                        type="text"
+                        value={city}
+                        onChange={e => setCity(e.target.value)}
+                        placeholder="e.g. Vancouver"
+                        className="w-full px-4 py-3 bg-[#fdfdfd] border border-[#e5e5e5] rounded-xl text-sm font-sans outline-none focus:border-black transition-all duration-200"
+                        id="auth-target-city"
+                      />
+                    </div>
+                  </div>
+                )}
 
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div className="w-full border-t border-neutral-200" />
-                </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="bg-white px-2 text-neutral-400 font-mono text-[9px] uppercase tracking-wider">or continue with</span>
-                </div>
-              </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 bg-black hover:bg-neutral-900 disabled:bg-neutral-400 text-white rounded-xl text-sm font-sans font-medium transition-all duration-200 mt-4 active:scale-[0.99] shadow-sm cursor-pointer"
+                  id="auth-submit-button"
+                >
+                  {loading ? 'Processing...' : isLogin ? 'Authenticate' : `Join SFT as ${role === 'realtor' ? 'Realtor' : 'Buyer'}`}
+                </button>
+              </form>
+            )}
 
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                className="w-full py-3 px-4 border border-neutral-200 hover:bg-neutral-50 disabled:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-sans font-medium flex items-center justify-center gap-2.5 transition-all duration-150 active:scale-[0.99]"
-                id="google-signin-button"
-              >
-                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
-                </svg>
-                Secure Google Authentication
-              </button>
-
-              {isIframe && (
-                <div className="mt-3.5 p-3.5 bg-teal-50/50 dark:bg-slate-900/30 border border-teal-100 dark:border-teal-950 rounded-xl text-[11px] text-teal-850 dark:text-teal-400 font-sans leading-relaxed text-left">
-                  <span className="font-semibold block mb-1">💡 Running in Preview Mode:</span>
-                  Google Authentication popups are heavily restricted by browser policies within preview frames (iframes). If it gets stuck or does not log you in, click the <strong className="text-black dark:text-white">"Open in new tab"</strong> icon (↗) at the top-right corner of the screen to sign in seamlessly.
-                </div>
-              )}
-            </form>
-
+            {/* Toggle Mode Link */}
             <div className="mt-6 pt-6 border-t border-[#eaeaea] text-center">
               <button
                 type="button"
-                onClick={() => setIsLogin(!isLogin)}
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setIsForgotPassword(false);
+                  setError('');
+                  setResetSuccess('');
+                }}
                 className="text-xs font-sans text-gray-500 hover:text-black hover:underline transition-all duration-150"
                 id="toggle-auth-mode"
               >
-                {isLogin ? "New to GetSFT? Create an elegance account" : "Have an elegant account? Authenticate"}
+                {isLogin ? "New to GetSFT? Create real account" : "Have an estate account? Authenticate"}
               </button>
             </div>
           </motion.div>

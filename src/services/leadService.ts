@@ -1,26 +1,21 @@
 import { Inquiry } from '../types';
 import { db, collection, doc, getDocs, getDoc, setDoc } from '../firebase';
-import { INITIAL_INQUIRIES } from '../mockData';
 
 export const leadService = {
   async getLeads(realtorId?: string): Promise<Inquiry[]> {
     try {
       const snap = await getDocs(collection(db, 'inquiries'));
-      if (snap.empty) {
-        console.log('Seeding initial inquiries...');
-        for (const inq of INITIAL_INQUIRIES) {
-          await setDoc(doc(db, 'inquiries', inq.id), inq);
-        }
-        return realtorId ? INITIAL_INQUIRIES.filter(i => i.realtor_id === realtorId) : INITIAL_INQUIRIES;
-      }
       const inquiries: Inquiry[] = [];
       snap.forEach(docSnap => {
-        inquiries.push(docSnap.data() as Inquiry);
+        const inq = docSnap.data() as Inquiry;
+        if (inq && inq.realtor_id !== 'david' && inq.realtor_id !== 'sarah' && inq.realtor_id !== 'julian') {
+          inquiries.push(inq);
+        }
       });
       const enriched = inquiries.map(inq => ({
         ...inq,
         budget: inq.budget || 'CAD 850,000',
-        source: inq.source || (inq.id === 'inq-1' ? 'Personal Website' : inq.id === 'inq-2' ? 'Direct Link' : 'Marketplace'),
+        source: inq.source || 'Marketplace',
         status: inq.status || 'New',
         notes: inq.notes || [inq.message || 'Initial inquiry registered in system.']
       }));
@@ -30,17 +25,7 @@ export const leadService = {
       return enriched;
     } catch (err) {
       console.error('Error fetching leads from Firestore:', err);
-      const enrichedInitial = INITIAL_INQUIRIES.map(inq => ({
-        ...inq,
-        budget: inq.budget || 'CAD 850,000',
-        source: inq.source || (inq.id === 'inq-1' ? 'Personal Website' : inq.id === 'inq-2' ? 'Direct Link' : 'Marketplace'),
-        status: inq.status || 'New',
-        notes: inq.notes || [inq.message || 'Initial inquiry registered in system.']
-      }));
-      if (realtorId) {
-        return enrichedInitial.filter(i => i.realtor_id === realtorId);
-      }
-      return enrichedInitial;
+      return [];
     }
   },
 

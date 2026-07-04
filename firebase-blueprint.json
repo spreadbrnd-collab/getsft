@@ -6,6 +6,7 @@
         "id": { "type": "string", "required": true },
         "name": { "type": "string", "required": true },
         "email": { "type": "string", "required": true },
+        "phone": { "type": "string", "required": false },
         "role": { "type": "string", "required": true },
         "savedPropertyIds": { "type": "array", "required": false },
         "realtorProfile": { "type": "map", "required": false }

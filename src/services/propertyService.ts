@@ -1,26 +1,21 @@
 import { Property } from '../types';
 import { db, collection, doc, getDocs, getDoc, setDoc, deleteDoc } from '../firebase';
-import { INITIAL_PROPERTIES } from '../mockData';
 
 export const propertyService = {
   async getProperties(): Promise<Property[]> {
     try {
       const snap = await getDocs(collection(db, 'properties'));
-      if (snap.empty) {
-        console.log('No properties found in Firestore. Seeding initial properties...');
-        for (const p of INITIAL_PROPERTIES) {
-          await setDoc(doc(db, 'properties', p.property_id.toString()), p);
-        }
-        return INITIAL_PROPERTIES;
-      }
       const properties: Property[] = [];
       snap.forEach(docSnap => {
-        properties.push(docSnap.data() as Property);
+        const data = docSnap.data() as Property;
+        if (data && data.owner_id !== 'david' && data.owner_id !== 'sarah' && data.owner_id !== 'julian') {
+          properties.push(data);
+        }
       });
       return properties.sort((a, b) => b.property_id - a.property_id);
     } catch (err) {
       console.error('Error in propertyService.getProperties:', err);
-      return INITIAL_PROPERTIES;
+      return [];
     }
   },
 
@@ -28,13 +23,16 @@ export const propertyService = {
     try {
       const docSnap = await getDoc(doc(db, 'properties', id.toString()));
       if (docSnap.exists()) {
-        return docSnap.data() as Property;
+        const data = docSnap.data() as Property;
+        if (data.owner_id !== 'david' && data.owner_id !== 'sarah' && data.owner_id !== 'julian') {
+          return data;
+        }
       }
       const all = await this.getProperties();
       return all.find(p => p.property_id === id);
     } catch (err) {
       console.error('Error in propertyService.getPropertyById:', err);
-      return INITIAL_PROPERTIES.find(p => p.property_id === id);
+      return undefined;
     }
   },
 

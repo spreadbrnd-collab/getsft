@@ -7,7 +7,6 @@ import {
   Compass, DollarSign, Calendar, Check
 } from 'lucide-react';
 import { Property, Realtor, Inquiry, User } from '../types';
-import { INITIAL_PROPERTIES } from '../mockData';
 
 const THEME_MAPPING: Record<string, {
   bgColor: string;
@@ -163,6 +162,7 @@ interface PropertyDetailPageProps {
   onInquirySubmit: (inquiry: Inquiry) => void;
   isSaved: boolean;
   onToggleSaved: (id: number) => void;
+  properties?: Property[];
 }
 
 export default function PropertyDetailPage({
@@ -172,7 +172,8 @@ export default function PropertyDetailPage({
   onBack,
   onInquirySubmit,
   isSaved,
-  onToggleSaved
+  onToggleSaved,
+  properties = []
 }: PropertyDetailPageProps) {
   const navigate = useNavigate();
   const [activeImage, setActiveImage] = useState(0);
@@ -231,7 +232,7 @@ export default function PropertyDetailPage({
   const [eligAge, setEligAge] = useState(30);
 
   // Property comparison selection state
-  const otherProperties = INITIAL_PROPERTIES.filter(p => p.property_id !== property.property_id);
+  const otherProperties = properties.filter(p => p.property_id !== property.property_id);
   const [compareId, setCompareId] = useState<number>(otherProperties[0]?.property_id || 0);
 
   const pricePerSft = Math.round(property.price / property.area);
@@ -248,7 +249,7 @@ export default function PropertyDetailPage({
       try {
         const storedViews = localStorage.getItem('getsft_page_views') || '{}';
         const viewsObj = JSON.parse(storedViews);
-        const baseline = 145 + (INITIAL_PROPERTIES.filter(p => p.owner_id === realtor.id).length * 25);
+        const baseline = 145 + (properties.filter(p => p.owner_id === realtor.id).length * 25);
         viewsObj[realtor.id] = (viewsObj[realtor.id] || baseline) + 1;
         localStorage.setItem('getsft_page_views', JSON.stringify(viewsObj));
       } catch (e) {

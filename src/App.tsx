@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Search, MapPin, Heart, ChevronRight, MessageSquare, ArrowRight, ShieldCheck, 
   Sparkles, Award, Star, Compass, Layout, Smartphone, Globe, Landmark, BadgeCheck,
-  UserCheck, LogIn, ExternalLink, RefreshCw, Moon, Sun, UserIcon
+  UserCheck, LogIn, ExternalLink, RefreshCw, Moon, Sun, UserIcon, Home, Users
 } from 'lucide-react';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, useLocation, Navigate, useSearchParams } from 'react-router-dom';
 
@@ -52,9 +52,9 @@ function AppContent() {
 
     const initializeFirebaseAndSync = async () => {
       try {
-        const { syncMockDataToFirestore, onAuthStateChanged, auth, doc, getDoc, setDoc, db } = await import('./firebase');
+        const { syncMockDataToFirestore, onAuthStateChanged, auth, doc, getDoc, setDoc, db, collection, getDocs } = await import('./firebase');
         
-        // 1. First ensure Firestore has mock data seeded
+        // 1. First ensure Firestore has legacy mock data cleaned up
         await syncMockDataToFirestore();
 
         // 2. Fetch properties
@@ -65,9 +65,27 @@ function AppContent() {
         const { leadService } = await import('./services/leadService');
         const dbInquiries = await leadService.getLeads();
 
+        // 3b. Fetch realtors and users dynamically from Firestore
+        const usersSnap = await getDocs(collection(db, 'users'));
+        const dbRealtors: Realtor[] = [];
+        const dbUsers: User[] = [];
+        usersSnap.forEach((uSnap) => {
+          const uData = uSnap.data() as User;
+          if (uData) {
+            if (uData.id !== 'david' && uData.id !== 'sarah' && uData.id !== 'julian') {
+              dbUsers.push(uData);
+              if (uData.role === 'realtor' && uData.realtorProfile) {
+                dbRealtors.push(uData.realtorProfile);
+              }
+            }
+          }
+        });
+
         if (isMounted) {
           setAppState(prev => ({
             ...prev,
+            realtors: dbRealtors,
+            users: dbUsers,
             properties: dbProperties,
             inquiries: dbInquiries
           }));
@@ -926,7 +944,28 @@ function AppContent() {
                     </h2>
                   </div>
 
-                  {searchedProperties.length === 0 ? (
+                  {appState.properties.length === 0 ? (
+                    <div className="text-center py-16 px-6 bg-white border border-[#eaeaea] rounded-[24px] max-w-2xl mx-auto space-y-4">
+                      <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center mx-auto">
+                        <Home className="w-6 h-6 text-teal-800" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-display font-medium text-neutral-950 font-display">No Active Curated Listings</h3>
+                        <p className="text-xs text-neutral-500 max-w-sm mx-auto leading-relaxed font-sans">
+                          We are preparing to launch our custom, non-dummy curated estate collection. Register as a Realtor today to post the very first listing.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setIsAuthOpen(true);
+                        }}
+                        className="px-5 py-2.5 bg-black hover:bg-neutral-900 text-white font-mono text-xs uppercase tracking-wider rounded-full cursor-pointer font-bold inline-block"
+                        id="empty-state-register-realtor"
+                      >
+                        Register as Realtor
+                      </button>
+                    </div>
+                  ) : searchedProperties.length === 0 ? (
                     <div className="text-center py-10 bg-neutral-50 rounded-[20px] border border-dashed border-neutral-200">
                       <p className="text-neutral-500 italic text-xs font-sans">No matching verified residences available within this filter slice.</p>
                       <button onClick={handleResetFilters} className="text-xs font-mono text-black underline mt-2 block mx-auto">See all listings</button>
@@ -1059,49 +1098,72 @@ function AppContent() {
                     </h2>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {appState.realtors.map((r) => {
-                      const rListings = appState.properties.filter(p => p.owner_id === r.id && p.show_on_marketplace).length;
-                      return (
-                        <div 
-                          key={r.id}
-                          className="p-8 bg-white border border-[#eaeaea] rounded-[24px] flex flex-col items-center text-center justify-between"
-                        >
-                          <div className="space-y-4 w-full">
-                            <div className="w-20 h-20 rounded-full overflow-hidden mx-auto border-2 border-neutral-200">
-                              <img
-                                src={r.profileImage}
-                                alt={r.name}
-                                referrerPolicy="no-referrer"
-                                className="w-full h-full object-cover"
-                              />
+                  {appState.realtors.length === 0 ? (
+                    <div className="text-center py-16 px-6 bg-white border border-[#eaeaea] rounded-[24px] max-w-2xl mx-auto space-y-4">
+                      <div className="w-12 h-12 bg-neutral-50 rounded-full flex items-center justify-center mx-auto">
+                        <Users className="w-6 h-6 text-neutral-600" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-display font-medium text-neutral-950 font-display">Independent Network Empty</h3>
+                        <p className="text-xs text-neutral-500 max-w-sm mx-auto leading-relaxed font-sans">
+                          No independent luxury agents are registered yet on the platform. Join our network of verified real estate advisors today.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setIsAuthOpen(true);
+                        }}
+                        className="px-5 py-2.5 bg-black hover:bg-neutral-900 text-white font-mono text-xs uppercase tracking-wider rounded-full cursor-pointer font-bold inline-block"
+                        id="empty-state-join-network"
+                      >
+                        Join the Network
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                      {appState.realtors.map((r) => {
+                        const rListings = appState.properties.filter(p => p.owner_id === r.id && p.show_on_marketplace).length;
+                        return (
+                          <div 
+                            key={r.id}
+                            className="p-8 bg-white border border-[#eaeaea] rounded-[24px] flex flex-col items-center text-center justify-between"
+                          >
+                            <div className="space-y-4 w-full">
+                              <div className="w-20 h-20 rounded-full overflow-hidden mx-auto border-2 border-neutral-200">
+                                <img
+                                  src={r.profileImage}
+                                  alt={r.name}
+                                  referrerPolicy="no-referrer"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-display font-semibold text-neutral-950 font-display">{r.name}</h3>
+                                <span className="text-xs font-mono text-neutral-400 block mt-0.5 uppercase tracking-wide">{r.title}</span>
+                              </div>
+                              
+                              <p className="text-xs text-neutral-500 max-w-xs mx-auto line-clamp-2 leading-relaxed font-sans">
+                                {r.bio}
+                              </p>
                             </div>
-                            <div>
-                              <h3 className="text-lg font-display font-semibold text-neutral-950 font-display">{r.name}</h3>
-                              <span className="text-xs font-mono text-neutral-400 block mt-0.5 uppercase tracking-wide">{r.title}</span>
-                            </div>
-                            
-                            <p className="text-xs text-neutral-500 max-w-xs mx-auto line-clamp-2 leading-relaxed font-sans">
-                              {r.bio}
-                            </p>
-                          </div>
 
-                          <div className="mt-8 pt-4 border-t border-neutral-100/60 w-full flex items-center justify-between">
-                            <span className="font-mono text-xs text-neutral-400">{rListings} listing{rListings !== 1 ? 's' : ''} on SFT</span>
-                            <button
-                              onClick={() => {
-                                navigate(`/realtor/${r.id}?theme=custom`);
-                              }}
-                              className="px-4 py-2 bg-black hover:bg-neutral-900 text-white rounded-full text-[10px] font-mono uppercase tracking-wider cursor-pointer font-bold"
-                              id={`view-realtor-site-${r.id}`}
-                            >
-                              View Site
-                            </button>
+                            <div className="mt-8 pt-4 border-t border-neutral-100/60 w-full flex items-center justify-between">
+                              <span className="font-mono text-xs text-neutral-400">{rListings} listing{rListings !== 1 ? 's' : ''} on SFT</span>
+                              <button
+                                onClick={() => {
+                                  navigate(`/realtor/${r.id}?theme=custom`);
+                                }}
+                                className="px-4 py-2 bg-black hover:bg-neutral-900 text-white rounded-full text-[10px] font-mono uppercase tracking-wider cursor-pointer font-bold"
+                                id={`view-realtor-site-${r.id}`}
+                              >
+                                View Site
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </section>
 
                 {/* Testimonials Section */}
@@ -1451,6 +1513,7 @@ function PropertyDetailWrapper({ appState, handleToggleWishlist, isSavedInWishli
         isSaved={isSavedInWishlist(property.property_id)}
         onToggleSaved={handleToggleWishlist}
         onInquirySubmit={handleInquirySubmitted}
+        properties={appState.properties}
         onBack={() => {
           if (realtorId) {
             navigate(`/realtor/${realtorId}`);
