@@ -2,6 +2,17 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Mail, Lock, User as UserIcon, ShieldAlert } from 'lucide-react';
 import { User, Realtor } from '../types';
+import { 
+  auth, 
+  googleProvider, 
+  signInWithPopup, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  db, 
+  doc, 
+  getDoc, 
+  setDoc 
+} from '../firebase';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -19,6 +30,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
   const [title, setTitle] = useState('Premium Real Estate Advisory');
   const [city, setCity] = useState('Vancouver');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
 
   React.useEffect(() => {
     if (isOpen) {
@@ -27,41 +41,48 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
     }
   }, [isOpen, initialRole]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGoogleSignIn = async () => {
     setError('');
+    setLoading(true);
 
-    if (!email || !password || (!isLogin && !name)) {
-      setError('Please complete all required fields.');
-      return;
-    }
+    // Set a safety timeout to detect stuck/unresponsive popup communication in iframes
+    const timeoutId = setTimeout(() => {
+      setLoading(false);
+      setError('Google Sign-In is taking longer than expected. Since the application is running inside a preview iframe, your browser might be blocking third-party authorization storage/cookies. Please click the "Open in new tab" icon (↗) in the top-right corner of the screen to authenticate successfully.');
+    }, 8500);
 
-    // Since this is a custom local system, we create or load from saved users
-    const existingRaw = localStorage.getItem('getsft_mvp_state');
-    let state = { users: [] as User[] };
-    if (existingRaw) {
-      try {
-        state = JSON.parse(existingRaw);
-      } catch (err) {}
-    }
-
-    if (isLogin) {
-      // Look up user
-      let found = state.users.find(u => u.email.toLowerCase() === email.toLowerCase());
-
-      if (found) {
-        // Respect the selected role in the tab instead of forcing or overruling
-        const sessionUser: User = {
-          ...found,
-          role: role
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      clearTimeout(timeoutId);
+      const fUser = result.user;
+      
+      const userRef = doc(db, 'users', fUser.uid);
+      const docSnap = await getDoc(userRef);
+      
+      let sessionUser: User;
+      
+      if (docSnap.exists()) {
+        sessionUser = docSnap.data() as User;
+        // Keep the role synchronized if they want to override
+        if (sessionUser.role !== role) {
+          sessionUser.role = role;
+          await setDoc(userRef, sessionUser);
+        }
+      } else {
+        sessionUser = {
+          id: fUser.uid,
+          name: fUser.displayName || fUser.email?.split('@')[0] || 'Google User',
+          email: fUser.email || '',
+          role: role,
+          savedPropertyIds: []
         };
-
-        if (role === 'realtor' && !sessionUser.realtorProfile) {
+        
+        if (role === 'realtor') {
           sessionUser.realtorProfile = {
-            id: sessionUser.id,
-            name: sessionUser.name || email.split('@')[0].toUpperCase(),
+            id: fUser.uid,
+            name: sessionUser.name,
             title: 'Licensed Luxury Advisor',
-            profileImage: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80',
+            profileImage: fUser.photoURL || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80',
             coverImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
             city: 'Vancouver',
             phone: '+1 (604) 555-0100',
@@ -72,95 +93,129 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
             specializations: ['Modernist Villas'],
             template: 'Minimal'
           };
-          
-          // Sync database users as well to save the profile!
-          found.realtorProfile = sessionUser.realtorProfile;
-          state.users = state.users.map(u => u.id === found!.id ? found! : u);
-          localStorage.setItem('getsft_mvp_state', JSON.stringify(state));
         }
+        
+        await setDoc(userRef, sessionUser);
+      }
+      
+      onAuthSuccess(sessionUser);
+      onClose();
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      console.error('Google Sign-In Error:', err);
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+        setError('The Google Auth popup was blocked by your browser. Please click the "Open in new tab" icon on the top right of the preview to complete authentication.');
+      } else {
+        setError(err.message || 'Failed to authenticate with Google.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (!email || !password || (!isLogin && !name)) {
+      setError('Please complete all required fields.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      if (isLogin) {
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        const fUser = cred.user;
+        
+        const userRef = doc(db, 'users', fUser.uid);
+        const docSnap = await getDoc(userRef);
+        
+        let sessionUser: User;
+        if (docSnap.exists()) {
+          sessionUser = docSnap.data() as User;
+        } else {
+          sessionUser = {
+            id: fUser.uid,
+            name: email.split('@')[0].toUpperCase(),
+            email: email,
+            role: role,
+            savedPropertyIds: []
+          };
+          if (role === 'realtor') {
+            sessionUser.realtorProfile = {
+              id: fUser.uid,
+              name: sessionUser.name,
+              title: 'Licensed Luxury Advisor',
+              profileImage: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80',
+              coverImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
+              city: 'Vancouver',
+              phone: '+1 (604) 555-0100',
+              whatsapp: '16045550100',
+              bio: 'Representing rare locations and structural design integrity.',
+              experience: 5,
+              languages: ['English'],
+              specializations: ['Modernist Villas'],
+              template: 'Minimal'
+            };
+          }
+          await setDoc(userRef, sessionUser);
+        }
+        
         onAuthSuccess(sessionUser);
         onClose();
       } else {
-        // Automatically create a mock user for convenience & flawless preview experience
-        const newUser: User = {
-          id: email.split('@')[0],
-          name: email.split('@')[0].toUpperCase(),
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        const fUser = cred.user;
+        
+        const sessionUser: User = {
+          id: fUser.uid,
+          name: name,
           email: email,
           role: role,
           savedPropertyIds: []
         };
+
         if (role === 'realtor') {
-          newUser.realtorProfile = {
-            id: newUser.id,
-            name: newUser.name,
-            title: 'Licensed Luxury Advisor',
-            profileImage: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80',
+          const customRealtor: Realtor = {
+            id: fUser.uid,
+            name: name,
+            title: title || 'Luxury Realtor',
+            profileImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=400&h=400&q=80',
             coverImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
-            city: 'Vancouver',
-            phone: '+1 (604) 555-0100',
-            whatsapp: '16045550100',
-            bio: 'Representing rare locations and structural design integrity.',
+            city: city,
+            phone: '+1 (555) ' + Math.floor(100 + Math.random() * 900) + '-' + Math.floor(1000 + Math.random() * 9000),
+            whatsapp: '15555555555',
+            bio: `Specializing in premium listings in ${city}. Dedicated to absolute architectural honesty, custom styling and tailored experiences.`,
             experience: 5,
             languages: ['English'],
-            specializations: ['Modernist Villas'],
+            specializations: ['Modern Architecture'],
             template: 'Minimal'
           };
+          sessionUser.realtorProfile = customRealtor;
         }
+
+        await setDoc(doc(db, 'users', fUser.uid), sessionUser);
         
-        // Add to state list
-        state.users.push(newUser);
-        localStorage.setItem('getsft_mvp_state', JSON.stringify(state));
-        
-        onAuthSuccess(newUser);
+        onAuthSuccess(sessionUser);
         onClose();
       }
-    } else {
-      // Register custom
-      const userExists = state.users.some(u => u.email.toLowerCase() === email.toLowerCase());
-      if (userExists) {
-        setError('This email is already associated with an account.');
-        return;
+    } catch (err: any) {
+      console.error('Email Auth Error:', err);
+      let errorMsg = err.message || 'Authentication failed.';
+      if (err.code === 'auth/wrong-password') {
+        errorMsg = 'Incorrect password. Please try again.';
+      } else if (err.code === 'auth/user-not-found') {
+        errorMsg = 'No account associated with this email address.';
+      } else if (err.code === 'auth/email-already-in-use') {
+        errorMsg = 'An account with this email address already exists.';
+      } else if (err.code === 'auth/weak-password') {
+        errorMsg = 'Password must be at least 6 characters.';
       }
-
-      const userId = name.toLowerCase().replace(/\s+/g, '-');
-      const newUser: User = {
-        id: userId,
-        name: name,
-        email: email,
-        role: role,
-        savedPropertyIds: []
-      };
-
-      if (role === 'realtor') {
-        const customRealtor: Realtor = {
-          id: userId,
-          name: name,
-          title: title || 'Luxury Realtor',
-          profileImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=400&h=400&q=80',
-          coverImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
-          city: city,
-          phone: '+1 (555) ' + Math.floor(100 + Math.random() * 900) + '-' + Math.floor(1000 + Math.random() * 9000),
-          whatsapp: '15555555555',
-          bio: `Specializing in premium listings in ${city}. Dedicated to absolute architectural honesty, custom styling and tailored experiences.`,
-          experience: 5,
-          languages: ['English'],
-          specializations: ['Modern Architecture'],
-          template: 'Minimal'
-        };
-        newUser.realtorProfile = customRealtor;
-
-        // Also append custom realtor to the common realtors array
-        if (state && (state as any).realtors) {
-          (state as any).realtors.unshift(customRealtor);
-        }
-      }
-
-      state.users.push(newUser);
-      localStorage.setItem('getsft_mvp_state', JSON.stringify(state));
-
-      onAuthSuccess(newUser);
-      onClose();
+      setError(errorMsg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -240,7 +295,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
             {isLogin && role === 'realtor' && (
               <div className="bg-neutral-50 border border-neutral-200 p-4 rounded-xl mb-6 space-y-2.5">
                 <span className="text-[10px] font-mono font-bold text-neutral-500 uppercase tracking-widest block">
-                  📂 AUTHORIZED TEST REAL REALTORS:
+                  📂 AUTHORIZED LIVE REALTORS:
                 </span>
                 <div className="space-y-2 font-mono text-[11px] text-neutral-700">
                   <div className="flex justify-between items-center bg-white p-2 rounded border border-neutral-100">
@@ -257,16 +312,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                     </div>
                     <code className="bg-neutral-100 px-1.5 py-0.5 rounded text-neutral-800 text-[10px]">password123</code>
                   </div>
-                  <div className="flex justify-between items-center bg-white p-2 rounded border border-neutral-100">
-                    <div>
-                      <span className="font-sans font-bold text-neutral-900 block">Julian Rose</span>
-                      <span className="text-[10px] text-neutral-500">julian@getsft.com</span>
-                    </div>
-                    <code className="bg-neutral-100 px-1.5 py-0.5 rounded text-neutral-800 text-[10px]">password123</code>
-                  </div>
                 </div>
                 <div className="text-[9px] text-neutral-400 leading-snug">
-                  * Please type the email and password above manually to check listings. Password is <code className="font-bold">password123</code>.
+                  * Live Firebase-backed accounts. Use these credentials to sign in directly! Password is <code className="font-bold">password123</code>.
                 </div>
               </div>
             )}
@@ -275,7 +323,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
             {error && (
               <div className="flex items-center gap-2 p-3.5 bg-[#fdf2f2] text-red-700 rounded-xl mb-6 text-xs font-sans">
                 <ShieldAlert className="w-4 h-4 shrink-0" />
-                <span>{error}</span>
+                <span className="break-words">{error}</span>
               </div>
             )}
 
@@ -369,11 +417,44 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
 
               <button
                 type="submit"
-                className="w-full py-3.5 bg-black hover:bg-neutral-900 text-white rounded-xl text-sm font-sans font-medium transition-all duration-200 mt-4 active:scale-[0.99] shadow-sm cursor-pointer"
+                disabled={loading}
+                className="w-full py-3.5 bg-black hover:bg-neutral-900 disabled:bg-neutral-400 text-white rounded-xl text-sm font-sans font-medium transition-all duration-200 mt-4 active:scale-[0.99] shadow-sm cursor-pointer"
                 id="auth-submit-button"
               >
-                {isLogin ? 'Authenticate' : `Join SFT as ${role === 'realtor' ? 'Realtor' : 'Buyer'}`}
+                {loading ? 'Processing...' : isLogin ? 'Authenticate' : `Join SFT as ${role === 'realtor' ? 'Realtor' : 'Buyer'}`}
               </button>
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div className="w-full border-t border-neutral-200" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-white px-2 text-neutral-400 font-mono text-[9px] uppercase tracking-wider">or continue with</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+                className="w-full py-3 px-4 border border-neutral-200 hover:bg-neutral-50 disabled:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-sans font-medium flex items-center justify-center gap-2.5 transition-all duration-150 active:scale-[0.99]"
+                id="google-signin-button"
+              >
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
+                </svg>
+                Secure Google Authentication
+              </button>
+
+              {isIframe && (
+                <div className="mt-3.5 p-3.5 bg-teal-50/50 dark:bg-slate-900/30 border border-teal-100 dark:border-teal-950 rounded-xl text-[11px] text-teal-850 dark:text-teal-400 font-sans leading-relaxed text-left">
+                  <span className="font-semibold block mb-1">💡 Running in Preview Mode:</span>
+                  Google Authentication popups are heavily restricted by browser policies within preview frames (iframes). If it gets stuck or does not log you in, click the <strong className="text-black dark:text-white">"Open in new tab"</strong> icon (↗) at the top-right corner of the screen to sign in seamlessly.
+                </div>
+              )}
             </form>
 
             <div className="mt-6 pt-6 border-t border-[#eaeaea] text-center">

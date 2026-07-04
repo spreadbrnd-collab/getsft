@@ -515,7 +515,7 @@ export default function RealtorProfilePage({
                               }`}
                               title={p.show_on_marketplace ? 'Remove from main SFT Platform' : 'Publish directly to SFT Platform'}
                             >
-                              {p.show_on_marketplace ? '★ Published on getSFT' : '☆ Publish on getSFT'}
+                              {p.show_on_marketplace ? '★ Published on SFT' : '☆ Publish on SFT'}
                             </button>
                           )}
                         </div>
@@ -863,7 +863,7 @@ export default function RealtorProfilePage({
                                 p.show_on_marketplace ? 'bg-[#38bdf8]' : 'bg-white'
                               }`}
                             >
-                              {p.show_on_marketplace ? '★ LIVE ON GETSFT' : '☆ PUBLISH ON GETSFT'}
+                              {p.show_on_marketplace ? '★ LIVE ON SFT' : '☆ PUBLISH ON SFT'}
                             </button>
                           )}
                         </div>
@@ -1221,7 +1221,7 @@ export default function RealtorProfilePage({
                                   : 'bg-cyan-950/80 hover:bg-cyan-500 text-cyan-400 hover:text-[#070314] border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.3)]'
                               }`}
                             >
-                              {p.show_on_marketplace ? '★ LIVE ON GETSFT' : '☆ PUBLISH ON GETSFT'}
+                              {p.show_on_marketplace ? '★ LIVE ON SFT' : '☆ PUBLISH ON SFT'}
                             </button>
                           )}
                         </div>

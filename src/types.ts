@@ -93,6 +93,12 @@ export interface Property {
   // International Identifiers
   mlsNumber?: string; // Canada / US MLS Number
   internationalRegId?: string; // International Registration ID / License
+  councilTaxBand?: string; // UK Council Tax Band (e.g. Band H)
+  tenure?: string; // UK Tenure (e.g. Share of Freehold, Leasehold)
+  epcRating?: string; // UK EPC Rating (e.g. EPC Grade B)
+  reraPermitNumber?: string; // Dubai RERA Permit Number (e.g. #7184910)
+  goldenVisaEligible?: boolean; // Dubai Golden Visa Eligibility
+  ownershipType?: string; // Dubai/Global Ownership Type (e.g. Freehold, Leasehold)
 }
 
 export interface Realtor {

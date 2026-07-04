@@ -186,6 +186,38 @@ export default function PropertyDetailPage({
 
   // Vetted detailed tools & calculator inputs
   const isINR = property.city?.toLowerCase() === 'hyderabad' || property.province?.toLowerCase() === 'telangana';
+
+  const formatCurrency = (value: number, shortForm: boolean = false) => {
+    const cur = property.currency?.toUpperCase() || (isINR ? 'INR' : 'USD');
+
+    if (cur === 'INR') {
+      if (shortForm) {
+        if (value >= 10000000) return `₹ ${(value / 10000000).toFixed(2)} Cr`;
+        if (value >= 100000) return `₹ ${(value / 100000).toFixed(2)} Lacs`;
+        return `₹ ${value.toLocaleString('en-IN')}`;
+      }
+      return `₹ ${value.toLocaleString('en-IN')}`;
+    }
+
+    if (cur === 'GBP') {
+      if (shortForm && value >= 1000000) return `£${(value / 1000000).toFixed(2)}M`;
+      return `£${value.toLocaleString('en-GB')}`;
+    }
+
+    if (cur === 'AED') {
+      if (shortForm && value >= 1000000) return `${(value / 1000000).toFixed(2)}M AED`;
+      return `${value.toLocaleString('en-AE')} AED`;
+    }
+
+    if (cur === 'CAD') {
+      if (shortForm && value >= 1000000) return `C$${(value / 1000000).toFixed(2)}M`;
+      return `C$${value.toLocaleString('en-CA')}`;
+    }
+
+    // Default USD
+    if (shortForm && value >= 1000000) return `$${(value / 1000000).toFixed(2)}M`;
+    return `$${value.toLocaleString('en-US')}`;
+  };
   
   const [activeToolTab, setActiveToolTab] = useState<'emi' | 'affordability' | 'eligibility' | 'breakdown'>('emi');
   const [emiDownPaymentPct, setEmiDownPaymentPct] = useState(20);
@@ -224,6 +256,85 @@ export default function PropertyDetailPage({
       }
     }
   }, [realtor?.id]);
+
+  // Enforce scroll to top on property change or component mount to fix mobile/desktop viewport scroll jump bugs
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    if (typeof window !== 'undefined') {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }
+  }, [property.property_id]);
+
+  const [resolvedMapQuery, setResolvedMapQuery] = useState('');
+  const [isResolvingMap, setIsResolvingMap] = useState(false);
+
+  useEffect(() => {
+    const mapUrl = property.googleMapLocation;
+    if (!mapUrl || !mapUrl.trim()) {
+      const parts = [property.address, property.city, property.province, property.postalCode].filter(Boolean);
+      setResolvedMapQuery(parts.join(', '));
+      return;
+    }
+
+    const isShortUrl = mapUrl.includes('maps.app.goo.gl') || mapUrl.includes('goo.gl/maps') || mapUrl.includes('maps.google') && !mapUrl.includes('embed');
+    
+    if (isShortUrl) {
+      setIsResolvingMap(true);
+      fetch(`/api/resolve-map?url=${encodeURIComponent(mapUrl)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.query) {
+            setResolvedMapQuery(data.query);
+          } else {
+            setResolvedMapQuery(mapUrl);
+          }
+        })
+        .catch(() => {
+          setResolvedMapQuery(mapUrl);
+        })
+        .finally(() => {
+          setIsResolvingMap(false);
+        });
+    } else {
+      let query = '';
+      try {
+        if (mapUrl.includes('?') || mapUrl.includes('//')) {
+          const urlObj = new URL(mapUrl.startsWith('http') ? mapUrl : `https://${mapUrl}`);
+          const q = urlObj.searchParams.get('q') || urlObj.searchParams.get('query');
+          if (q) {
+            query = q;
+          } else {
+            const placeMatch = urlObj.pathname.match(/\/place\/([^/]+)/);
+            if (placeMatch && placeMatch[1]) {
+              query = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+            } else {
+              const coordMatch = urlObj.pathname.match(/@(-?\d+\.\d+,-?\d+\.\d+)/);
+              if (coordMatch && coordMatch[1]) {
+                query = coordMatch[1];
+              } else {
+                query = mapUrl;
+              }
+            }
+          }
+        } else {
+          query = mapUrl;
+        }
+      } catch {
+        query = mapUrl;
+      }
+      
+      if (!query || query.startsWith('http://') || query.startsWith('https://')) {
+        const parts = [property.address, property.city, property.province, property.postalCode].filter(Boolean);
+        query = parts.join(', ');
+      }
+      setResolvedMapQuery(query);
+    }
+  }, [property.property_id, property.googleMapLocation, property.address, property.city, property.province, property.postalCode]);
+
+  const embedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(resolvedMapQuery || property.address || '')}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+  const googleMapsRedirectUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(resolvedMapQuery || property.address || '')}`;
 
   const handleInquiryForm = (e: React.FormEvent) => {
     e.preventDefault();
@@ -345,7 +456,7 @@ export default function PropertyDetailPage({
                 <div className="space-y-1">
                   <span className="text-[10px] font-mono uppercase tracking-wide opacity-60 block">Monthly Rent Rate</span>
                   <span className={`text-xl font-display font-semibold ${theme.titleColor} mt-0.5 block`}>
-                    {isINR ? `₹ ${(property.price / 100000).toFixed(2)} Lacs` : `$${property.price.toLocaleString()}`}
+                    {formatCurrency(property.price)}
                     <span className="text-xs font-mono opacity-50 font-normal"> / mo</span>
                   </span>
                   <span className="text-[9px] font-mono opacity-70 block">Fully-Vetted Base Rate</span>
@@ -354,7 +465,7 @@ export default function PropertyDetailPage({
                 <div className="space-y-1">
                   <span className="text-[10px] font-mono uppercase tracking-wide opacity-60 block">Rent per Sq Ft</span>
                   <span className={`text-xl font-display font-semibold ${theme.titleColor} mt-0.5 block`}>
-                    {isINR ? `₹ ${(property.price / property.area).toFixed(1)}` : `$${(property.price / property.area).toFixed(2)}`}
+                    {formatCurrency(Math.round((property.price / property.area) * 100) / 100)}
                     <span className="text-xs font-mono opacity-50 font-normal"> / SFT / mo</span>
                   </span>
                   <span className="text-[9px] font-mono opacity-70 block">Calculated Space Cost</span>
@@ -363,7 +474,7 @@ export default function PropertyDetailPage({
                 <div className="space-y-1">
                   <span className="text-[10px] font-mono uppercase tracking-wide opacity-60 block font-bold">Yearly Rent Outlay</span>
                   <span className={`text-xl font-display font-bold ${theme.headingColor} mt-0.5 block`}>
-                    {isINR ? `₹ ${((property.price * 12) / 100000).toFixed(2)} Lacs` : `$${(property.price * 12).toLocaleString()}`}
+                    {formatCurrency(property.price * 12)}
                     <span className="text-xs font-mono opacity-50 font-normal"> / yr</span>
                   </span>
                   <span className="text-[9px] font-mono opacity-70 block">Total Annual Rent Cost</span>
@@ -372,7 +483,7 @@ export default function PropertyDetailPage({
                 <div className="space-y-1">
                   <span className="text-[10px] font-mono uppercase tracking-wide opacity-60 block">Lease Agreement</span>
                   <span className={`text-xl font-display font-semibold ${theme.titleColor} mt-0.5 block`}>
-                    12 Months
+                    {property.leaseDuration || '12 Months'}
                   </span>
                   <span className="text-[9px] font-mono opacity-70 block">1-Month Security Deposit</span>
                 </div>
@@ -383,7 +494,7 @@ export default function PropertyDetailPage({
                 <div className="space-y-1">
                   <span className="text-[10px] font-mono uppercase tracking-wide opacity-60 block">List Sale Price</span>
                   <span className={`text-xl font-display font-semibold ${theme.titleColor} mt-0.5 block`}>
-                    {isINR ? (property.price >= 10000000 ? `₹ ${(property.price / 10000000).toFixed(2)} Cr` : `₹ ${(property.price / 100000).toFixed(2)} Lakhs`) : `$${property.price.toLocaleString()}`}
+                    {formatCurrency(property.price, true)}
                   </span>
                   <span className="text-[9px] font-mono opacity-70 block">Verified Market Valuation</span>
                 </div>
@@ -391,7 +502,7 @@ export default function PropertyDetailPage({
                 <div className="space-y-1">
                   <span className="text-[10px] font-mono uppercase tracking-wide opacity-60 block">Unit Cost (SFT)</span>
                   <span className={`text-xl font-display font-semibold ${theme.titleColor} mt-0.5 block`}>
-                    {isINR ? `₹ ${(pricePerSft / 100).toFixed(1)} K` : `$${pricePerSft.toLocaleString()}`}
+                    {formatCurrency(pricePerSft)}
                     <span className="text-xs font-mono opacity-50 font-normal"> / SFT</span>
                   </span>
                   <span className="text-[9px] font-mono opacity-70 block">Acquisition Floor Price</span>
@@ -400,7 +511,7 @@ export default function PropertyDetailPage({
                 <div className="space-y-1">
                   <span className="text-[10px] font-mono uppercase tracking-wide opacity-60 block font-bold">Est. Market Rent Value</span>
                   <span className={`text-xl font-display font-bold ${theme.headingColor} mt-0.5 block`}>
-                    {isINR ? `₹ ${(property.monthlyRentEstimate || Math.round(property.price * 0.0035)).toLocaleString('en-IN')}` : `$${(property.monthlyRentEstimate || Math.round(property.price * 0.0035)).toLocaleString()}`}
+                    {formatCurrency(property.monthlyRentEstimate || Math.round(property.price * 0.0035))}
                     <span className="text-xs font-mono opacity-50 font-normal"> / mo</span>
                   </span>
                   <span className="text-[9px] font-mono opacity-70 block">Potential Passive Monthly Yield</span>
@@ -417,6 +528,136 @@ export default function PropertyDetailPage({
               </>
             )}
           </div>
+
+          {/* GLOBAL REGION & COMPLIANCE SECTION */}
+          {(property.country === 'Canada' || property.country === 'USA' || property.country === 'UK' || property.country === 'UAE') && (
+            <div className={`p-6 rounded-2xl border ${theme.borderClass} ${theme.subBg} space-y-4`}>
+              <div className="flex items-center justify-between">
+                <h3 className={`text-xs font-display font-semibold ${theme.titleColor} uppercase tracking-wider flex items-center gap-2`}>
+                  {property.country === 'UK' && <span className="text-sm">🇬🇧</span>}
+                  {property.country === 'UAE' && <span className="text-sm">🇦🇪</span>}
+                  {property.country === 'Canada' && <span className="text-sm">🇨🇦</span>}
+                  {property.country === 'USA' && <span className="text-sm">🇺🇸</span>}
+                  Regional Compliance & Market Metadata
+                </h3>
+                <span className="text-[10px] font-mono text-teal-700 font-semibold px-2 py-0.5 bg-teal-50 rounded-full">
+                  Verified Local Listing
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+                {property.country === 'UK' && (
+                  <>
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 block">Council Tax Band</span>
+                      <span className={`text-sm font-semibold ${theme.titleColor} block`}>
+                        {property.councilTaxBand || 'Band H'}
+                      </span>
+                      <span className="text-[9px] font-mono opacity-50 block">Greater London Standard</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 block">Property Tenure</span>
+                      <span className={`text-sm font-semibold ${theme.titleColor} block truncate`} title={property.tenure}>
+                        {property.tenure || 'Share of Freehold'}
+                      </span>
+                      <span className="text-[9px] font-mono opacity-50 block">Land Registry Status</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 block">EPC Energy Rating</span>
+                      <span className="text-sm font-semibold text-emerald-600 flex items-center gap-1 block">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                        {property.epcRating || 'Grade B'}
+                      </span>
+                      <span className="text-[9px] font-mono opacity-50 block">Efficiency Rating</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 block">SDLT Tax Rating</span>
+                      <span className={`text-sm font-semibold ${theme.titleColor} block`}>
+                        Eligible Flat SDLT
+                      </span>
+                      <span className="text-[9px] font-mono opacity-50 block">Due at Transaction</span>
+                    </div>
+                  </>
+                )}
+
+                {property.country === 'UAE' && (
+                  <>
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 block">Dubai RERA Permit</span>
+                      <span className={`text-sm font-mono font-semibold ${theme.titleColor} block`}>
+                        {property.reraPermitNumber || 'DLD-7184910'}
+                      </span>
+                      <span className="text-[9px] font-mono opacity-50 block">Land Dept Permitted</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 block">Ownership Structure</span>
+                      <span className={`text-sm font-semibold ${theme.titleColor} block`}>
+                        {property.ownershipType || '100% Freehold'}
+                      </span>
+                      <span className="text-[9px] font-mono opacity-50 block">Expat Purchase Approved</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 block">Golden Visa Status</span>
+                      <span className="text-sm font-semibold text-amber-600 flex items-center gap-1 block">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block"></span>
+                        {property.goldenVisaEligible ? 'Eligible (AED 2M+)' : 'Inquire (Valuation Dependent)'}
+                      </span>
+                      <span className="text-[9px] font-mono opacity-50 block">10-Year Residency Path</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 block">DLD Transfer Fee</span>
+                      <span className={`text-sm font-semibold ${theme.titleColor} block`}>
+                        4% Outlay flat
+                      </span>
+                      <span className="text-[9px] font-mono opacity-50 block">Payable to Dubai Gov</span>
+                    </div>
+                  </>
+                )}
+
+                {(property.country === 'Canada' || property.country === 'USA') && (
+                  <>
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 block">MLS® Identifier</span>
+                      <span className={`text-sm font-mono font-semibold ${theme.titleColor} block`}>
+                        {property.mlsNumber || 'Not Listed'}
+                      </span>
+                      <span className="text-[9px] font-mono opacity-50 block">Board Registered ID</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 block">Ownership Type</span>
+                      <span className={`text-sm font-semibold ${theme.titleColor} block`}>
+                        {property.ownershipType || 'Freehold Title'}
+                      </span>
+                      <span className="text-[9px] font-mono opacity-50 block">Clear Land Title Deed</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 block">Foreign Buyer Vetting</span>
+                      <span className={`text-sm font-semibold text-teal-600 block`}>
+                        {property.country === 'Canada' ? 'Compliant / Exempt' : 'Permitted (Fully Open)'}
+                      </span>
+                      <span className="text-[9px] font-mono opacity-50 block">Regulatory Status</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 block">Zoning & Code</span>
+                      <span className={`text-sm font-mono font-semibold ${theme.titleColor} block`}>
+                        {property.internationalRegId || 'R1-Residential'}
+                      </span>
+                      <span className="text-[9px] font-mono opacity-50 block">Vetted Zoning Authority</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Home Overview & Description details */}
           <div className="space-y-4">
@@ -949,6 +1190,55 @@ export default function PropertyDetailPage({
                 </div>
               );
             })()}
+          </div>
+
+          {/* PROPERTY LOCATION MAP */}
+          <div className="p-7 bg-white border border-neutral-200 rounded-[32px] space-y-4 shadow-[0_4px_24px_rgba(0,0,0,0.015)]" id="property-location-map-section">
+            <div>
+              <span className="text-[10px] uppercase font-mono tracking-widest text-[#b38e68] font-bold block">✦ Geographic Footprint</span>
+              <h3 className="text-xl font-display font-medium text-neutral-900 tracking-tight mt-1">Property Location Map</h3>
+              <p className="text-xs text-neutral-500 font-sans leading-relaxed mt-1">
+                Explore surrounding arterial roads, localized transit points, and neighborhood layouts.
+              </p>
+            </div>
+            
+            <div className="relative group rounded-3xl overflow-hidden border border-neutral-200 shadow-xs bg-neutral-100">
+              {isResolvingMap && (
+                <div className="absolute inset-0 bg-white/85 backdrop-blur-xs flex flex-col items-center justify-center z-10 space-y-2">
+                  <span className="w-5 h-5 rounded-full border-2 border-[#b38e68] border-t-transparent animate-spin inline-block"></span>
+                  <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest animate-pulse font-bold">Resolving Link...</span>
+                </div>
+              )}
+              <iframe
+                title="Property Location Map"
+                src={embedUrl}
+                width="100%"
+                height="380"
+                style={{ border: 0 }}
+                allowFullScreen={false}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="w-full grayscale-[15%] contrast-[110%] group-hover:grayscale-0 transition-all duration-500"
+              />
+              
+              {/* Overlay for clicking redirect */}
+              <a
+                href={googleMapsRedirectUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2 bg-neutral-900/90 backdrop-blur-xs text-white hover:bg-black rounded-xl font-mono text-[10px] uppercase tracking-wider transition-all duration-300 font-bold shadow-md cursor-pointer hover:scale-[1.02]"
+              >
+                <MapPin className="w-3.5 h-3.5 text-[#c8a27b]" />
+                Open in Google Maps
+              </a>
+            </div>
+            
+            <div className="flex items-center gap-2.5 px-4 py-3 bg-[#fbf9f6] border border-[#ede7df] rounded-2xl font-sans text-xs text-neutral-600">
+              <MapPin className="w-4 h-4 text-[#c8a27b] shrink-0" />
+              <span>
+                <strong>Vetted Location:</strong> {property.address}, {property.city}, {property.province} {property.postalCode}
+              </span>
+            </div>
           </div>
 
         </div>

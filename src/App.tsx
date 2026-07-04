@@ -16,6 +16,20 @@ import RealtorProfilePage from './components/RealtorProfilePage';
 import BuyerWishlist from './components/BuyerWishlist';
 import PropertyDetailPage from './components/PropertyDetailPage';
 
+export function slugify(text: string): string {
+  if (!text) return '';
+  return text
+    .toString()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\-]+/g, '')
+    .replace(/\-\-+/g, '-')
+    .replace(/^-+/, '')
+    .replace(/-+$/, '');
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -31,6 +45,87 @@ function AppContent() {
   // Global React States initialized from persistent loadState
   const [appState, setAppState] = useState(() => loadState());
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+
+  // Synchronize Firestore and Firebase Auth on Mount
+  useEffect(() => {
+    let isMounted = true;
+
+    const initializeFirebaseAndSync = async () => {
+      try {
+        const { syncMockDataToFirestore, onAuthStateChanged, auth, doc, getDoc, setDoc, db } = await import('./firebase');
+        
+        // 1. First ensure Firestore has mock data seeded
+        await syncMockDataToFirestore();
+
+        // 2. Fetch properties
+        const { propertyService } = await import('./services/propertyService');
+        const dbProperties = await propertyService.getProperties();
+
+        // 3. Fetch inquiries
+        const { leadService } = await import('./services/leadService');
+        const dbInquiries = await leadService.getLeads();
+
+        if (isMounted) {
+          setAppState(prev => ({
+            ...prev,
+            properties: dbProperties,
+            inquiries: dbInquiries
+          }));
+        }
+
+        // 4. Listen to Auth state
+        const unsubscribeAuth = onAuthStateChanged(auth, async (fUser) => {
+          if (!isMounted) return;
+
+          if (fUser) {
+            try {
+              const userRef = doc(db, 'users', fUser.uid);
+              const userSnap = await getDoc(userRef);
+              if (userSnap.exists()) {
+                const userData = userSnap.data() as User;
+                setAppState(prev => ({
+                  ...prev,
+                  currentUser: userData
+                }));
+              } else {
+                // Fallback document creation if user document is missing (prevents login hang)
+                const fallbackUser: User = {
+                  id: fUser.uid,
+                  name: fUser.displayName || fUser.email?.split('@')[0] || 'Google User',
+                  email: fUser.email || '',
+                  role: 'buyer',
+                  savedPropertyIds: []
+                };
+                await setDoc(userRef, fallbackUser);
+                setAppState(prev => ({
+                  ...prev,
+                  currentUser: fallbackUser
+                }));
+              }
+            } catch (err) {
+              console.error('Error fetching authorized user profile:', err);
+            }
+          } else {
+            setAppState(prev => ({
+              ...prev,
+              currentUser: null
+            }));
+          }
+        });
+
+        return unsubscribeAuth;
+      } catch (err) {
+        console.error('Failed to initialize Firebase Auth and Firestore data flow:', err);
+      }
+    };
+
+    let unsubscribePromise = initializeFirebaseAndSync();
+
+    return () => {
+      isMounted = false;
+      unsubscribePromise.then(unsub => unsub && unsub());
+    };
+  }, []);
 
   // Global Dark Mode Preference (Default to true)
   const [darkMode, setDarkMode] = useState<boolean>(() => {
@@ -52,6 +147,11 @@ function AppContent() {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+
+  // Scroll to top on route change (solves mobile and desktop viewport issues)
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [location.pathname]);
   
   // Dialog Open Toggles
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -183,18 +283,34 @@ function AppContent() {
   };
 
   // Submit new inquiry lead
-  const handleInquirySubmitted = (newInquiry: Inquiry) => {
+  const handleInquirySubmitted = async (newInquiry: Inquiry) => {
     setAppState((prev) => ({
       ...prev,
       inquiries: [newInquiry, ...prev.inquiries]
     }));
+
+    try {
+      const { leadService } = await import('./services/leadService');
+      await leadService.createLead(newInquiry);
+    } catch (err) {
+      console.error('Error syncing inquiry submission to Firestore:', err);
+    }
   };
 
-  const handleUpdateInquiries = (updatedInquiries: Inquiry[]) => {
+  const handleUpdateInquiries = async (updatedInquiries: Inquiry[]) => {
     setAppState((prev) => ({
       ...prev,
       inquiries: updatedInquiries
     }));
+
+    try {
+      const { leadService } = await import('./services/leadService');
+      for (const inq of updatedInquiries) {
+        await leadService.updateLead(inq);
+      }
+    } catch (err) {
+      console.error('Error syncing inquiry updates to Firestore:', err);
+    }
   };
 
   const handleInitInquiry = (property: Property) => {
@@ -236,14 +352,35 @@ function AppContent() {
   };
 
   // Realtor specific updates in state from dashboard
-  const handleUpdateProperties = (nextProperties: Property[]) => {
+  const handleUpdateProperties = async (nextProperties: Property[]) => {
     setAppState((prev) => ({
       ...prev,
       properties: nextProperties
     }));
+
+    try {
+      const { propertyService } = await import('./services/propertyService');
+      const existingInDb = await propertyService.getProperties();
+      
+      const nextIds = new Set(nextProperties.map(p => p.property_id));
+      
+      // Delete removed properties
+      for (const p of existingInDb) {
+        if (!nextIds.has(p.property_id)) {
+          await propertyService.deleteProperty(p.property_id);
+        }
+      }
+
+      // Update / Add current ones
+      for (const p of nextProperties) {
+        await propertyService.updateProperty(p);
+      }
+    } catch (err) {
+      console.error('Error syncing properties updates to Firestore:', err);
+    }
   };
 
-  const handleToggleMarketplaceVisibility = (propertyId: number) => {
+  const handleToggleMarketplaceVisibility = async (propertyId: number) => {
     const updatedProperties = appState.properties.map((p) => {
       if (p.property_id === propertyId) {
         const nextState = !p.show_on_marketplace;
@@ -257,13 +394,21 @@ function AppContent() {
     });
 
     setAppState((prev) => {
-      const nextState = { ...prev, properties: updatedProperties };
-      saveState(nextState);
-      return nextState;
+      return { ...prev, properties: updatedProperties };
     });
+
+    try {
+      const target = updatedProperties.find(p => p.property_id === propertyId);
+      if (target) {
+        const { propertyService } = await import('./services/propertyService');
+        await propertyService.updateProperty(target);
+      }
+    } catch (err) {
+      console.error('Error syncing visibility status update to Firestore:', err);
+    }
   };
 
-  const handleUpdateRealtorProfile = (nextProfile: Realtor) => {
+  const handleUpdateRealtorProfile = async (nextProfile: Realtor) => {
     const updatedRealtors = appState.realtors.map((r) => r.id === nextProfile.id ? nextProfile : r);
     const updatedUsers = appState.users.map((u) => {
       if (u.id === nextProfile.id) {
@@ -280,9 +425,29 @@ function AppContent() {
       users: updatedUsers,
       currentUser: refreshedCurrentUser
     }));
+
+    if (appState.currentUser) {
+      try {
+        const { db, doc, setDoc } = await import('./firebase');
+        const userRef = doc(db, 'users', appState.currentUser.id);
+        await setDoc(userRef, {
+          ...appState.currentUser,
+          realtorProfile: nextProfile
+        });
+      } catch (err) {
+        console.error('Error syncing updated realtor profile to Firestore:', err);
+      }
+    }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const { auth, signOut } = await import('./firebase');
+      await signOut(auth);
+    } catch (err) {
+      console.error('Firebase Auth sign-out failed:', err);
+    }
+
     setAppState((prev) => ({
       ...prev,
       currentUser: null
@@ -770,10 +935,12 @@ function AppContent() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {searchedProperties.map((p) => {
                         const hostRealtor = appState.realtors.find((r) => r.id === p.owner_id);
+                        const agentSlug = hostRealtor ? slugify(hostRealtor.name) : 'agent';
+                        const propSlug = slugify(p.title);
                         return (
                           <div 
                             key={p.property_id}
-                            onClick={() => navigate(`/property/${p.property_id}`)}
+                            onClick={() => navigate(`/property/${p.property_id}/${agentSlug}/${propSlug}`)}
                             className="bg-white border border-[#eaeaea] rounded-[20px] overflow-hidden group hover:border-teal-700 hover:shadow-md transition-all duration-300 flex flex-col cursor-pointer"
                           >
                             <div className="relative aspect-3/2 overflow-hidden bg-neutral-100 shrink-0">
@@ -865,7 +1032,9 @@ function AppContent() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigate(`/property/${p.property_id}`);
+                                    const agentSlug = hostRealtor ? slugify(hostRealtor.name) : 'agent';
+                                    const propSlug = slugify(p.title);
+                                    navigate(`/property/${p.property_id}/${agentSlug}/${propSlug}`);
                                   }}
                                   className="px-4 py-2 bg-teal-850 hover:bg-teal-900 text-white text-[10px] font-mono uppercase tracking-wider rounded transition-colors font-bold cursor-pointer"
                                   id={`inquire-property-btn-${p.property_id}`}
@@ -1028,7 +1197,23 @@ function AppContent() {
                 handleInquirySubmitted={handleInquirySubmitted} 
               />
             } />
+            <Route path="/property/:propertyId/:agentName/:propertySlug" element={
+              <PropertyDetailWrapper 
+                appState={appState} 
+                isSavedInWishlist={isSavedInWishlist} 
+                handleToggleWishlist={handleToggleWishlist} 
+                handleInquirySubmitted={handleInquirySubmitted} 
+              />
+            } />
             <Route path="/realtor/:realtorId/property/:propertyId" element={
+              <PropertyDetailWrapper 
+                appState={appState} 
+                isSavedInWishlist={isSavedInWishlist} 
+                handleToggleWishlist={handleToggleWishlist} 
+                handleInquirySubmitted={handleInquirySubmitted} 
+              />
+            } />
+            <Route path="/realtor/:realtorId/property/:propertyId/:agentName/:propertySlug" element={
               <PropertyDetailWrapper 
                 appState={appState} 
                 isSavedInWishlist={isSavedInWishlist} 
@@ -1186,8 +1371,19 @@ function RealtorSiteWrapper({ appState, handleInquirySubmitted, handleToggleMark
         properties={appState.properties}
         onInquirySubmit={handleInquirySubmitted}
         onBackToMarketplace={() => navigate('/')}
-        onPropertyClick={(id) => navigate(`/realtor/${realtor.id}/property/${id}`)}
-        onTogglePublishMarketplace={handleToggleMarketplaceVisibility}
+        onPropertyClick={(id) => {
+          const p = appState.properties.find((prop: Property) => prop.property_id === id);
+          if (p) {
+            navigate(`/realtor/${realtor.id}/property/${id}/${slugify(realtor.name)}/${slugify(p.title)}`);
+          } else {
+            navigate(`/realtor/${realtor.id}/property/${id}`);
+          }
+        }}
+        onTogglePublishMarketplace={
+          appState.currentUser && appState.currentUser.role === 'realtor' && appState.currentUser.id === realtor.id 
+            ? handleToggleMarketplaceVisibility 
+            : undefined
+        }
         isPreview={false}
         forceNormalTheme={forceNormalTheme}
       />
@@ -1201,11 +1397,31 @@ function PropertyDetailWrapper({ appState, handleToggleWishlist, isSavedInWishli
   isSavedInWishlist: any; 
   handleInquirySubmitted: any; 
 }) {
-  const { realtorId, propertyId } = useParams<{ realtorId?: string; propertyId: string }>();
+  const { realtorId, propertyId, agentName, propertySlug } = useParams<{ 
+    realtorId?: string; 
+    propertyId: string;
+    agentName?: string;
+    propertySlug?: string;
+  }>();
   const navigate = useNavigate();
   
   const property = appState.properties.find((p: Property) => p.property_id === Number(propertyId));
-  
+  const realtor = property ? (appState.realtors.find((r: Realtor) => r.id === (realtorId || property.owner_id)) || appState.realtors[0]) : null;
+
+  useEffect(() => {
+    if (property && realtor) {
+      const correctAgent = slugify(realtor.name);
+      const correctSlug = slugify(property.title);
+      if (agentName !== correctAgent || propertySlug !== correctSlug) {
+        if (realtorId) {
+          navigate(`/realtor/${realtorId}/property/${propertyId}/${correctAgent}/${correctSlug}`, { replace: true });
+        } else {
+          navigate(`/property/${propertyId}/${correctAgent}/${correctSlug}`, { replace: true });
+        }
+      }
+    }
+  }, [propertyId, realtorId, agentName, propertySlug, property, realtor, navigate]);
+
   if (!property) {
     return (
       <div className="max-w-7xl mx-auto px-6 py-24 text-center font-sans space-y-4">
@@ -1220,7 +1436,7 @@ function PropertyDetailWrapper({ appState, handleToggleWishlist, isSavedInWishli
     );
   }
 
-  const realtor = appState.realtors.find((r: Realtor) => r.id === (realtorId || property.owner_id)) || appState.realtors[0];
+  const activeRealtor = realtor || appState.realtors[0];
 
   return (
     <motion.div
@@ -1230,7 +1446,7 @@ function PropertyDetailWrapper({ appState, handleToggleWishlist, isSavedInWishli
     >
       <PropertyDetailPage
         property={property}
-        realtor={realtor}
+        realtor={activeRealtor}
         currentUser={appState.currentUser}
         isSaved={isSavedInWishlist(property.property_id)}
         onToggleSaved={handleToggleWishlist}

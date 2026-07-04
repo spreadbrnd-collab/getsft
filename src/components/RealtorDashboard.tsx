@@ -111,6 +111,76 @@ export default function RealtorDashboard({
   const [newCountry, setNewCountry] = useState('Canada');
   const [newAreaCommunity, setNewAreaCommunity] = useState('');
   const [newGoogleMap, setNewGoogleMap] = useState('');
+  const [resolvedDashboardMapQuery, setResolvedDashboardMapQuery] = useState('');
+  const [isResolvingDashboardMap, setIsResolvingDashboardMap] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const mapUrl = newGoogleMap;
+      if (!mapUrl || !mapUrl.trim()) {
+        const parts = [newAddress, newCity, newProvince, newPostal].filter(Boolean);
+        setResolvedDashboardMapQuery(parts.join(', '));
+        return;
+      }
+
+      const isShortUrl = mapUrl.includes('maps.app.goo.gl') || mapUrl.includes('goo.gl/maps') || mapUrl.includes('maps.google') && !mapUrl.includes('embed');
+      
+      if (isShortUrl) {
+        setIsResolvingDashboardMap(true);
+        fetch(`/api/resolve-map?url=${encodeURIComponent(mapUrl)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.success && data.query) {
+              setResolvedDashboardMapQuery(data.query);
+            } else {
+              setResolvedDashboardMapQuery(mapUrl);
+            }
+          })
+          .catch(() => {
+            setResolvedDashboardMapQuery(mapUrl);
+          })
+          .finally(() => {
+            setIsResolvingDashboardMap(false);
+          });
+      } else {
+        let query = '';
+        try {
+          if (mapUrl.includes('?') || mapUrl.includes('//')) {
+            const urlObj = new URL(mapUrl.startsWith('http') ? mapUrl : `https://${mapUrl}`);
+            const q = urlObj.searchParams.get('q') || urlObj.searchParams.get('query');
+            if (q) {
+              query = q;
+            } else {
+              const placeMatch = urlObj.pathname.match(/\/place\/([^/]+)/);
+              if (placeMatch && placeMatch[1]) {
+                query = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+              } else {
+                const coordMatch = urlObj.pathname.match(/@(-?\d+\.\d+,-?\d+\.\d+)/);
+                if (coordMatch && coordMatch[1]) {
+                  query = coordMatch[1];
+                } else {
+                  query = mapUrl;
+                }
+              }
+            }
+          } else {
+            query = mapUrl;
+          }
+        } catch {
+          query = mapUrl;
+        }
+        
+        if (!query || query.startsWith('http://') || query.startsWith('https://')) {
+          const parts = [newAddress, newCity, newProvince, newPostal].filter(Boolean);
+          query = parts.join(', ');
+        }
+        setResolvedDashboardMapQuery(query);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [newGoogleMap, newAddress, newCity, newProvince, newPostal]);
+
   const [newKitchens, setNewKitchens] = useState('1');
   const [newLivingRooms, setNewLivingRooms] = useState('1');
   const [newDiningRooms, setNewDiningRooms] = useState('1');
@@ -144,6 +214,12 @@ export default function RealtorDashboard({
   const [newNearbyParks, setNewNearbyParks] = useState('');
   const [newMlsNumber, setNewMlsNumber] = useState('');
   const [newInternationalRegId, setNewInternationalRegId] = useState('');
+  const [newCouncilTaxBand, setNewCouncilTaxBand] = useState('');
+  const [newTenure, setNewTenure] = useState('');
+  const [newEpcRating, setNewEpcRating] = useState('');
+  const [newReraPermitNumber, setNewReraPermitNumber] = useState('');
+  const [newGoldenVisaEligible, setNewGoldenVisaEligible] = useState(false);
+  const [newOwnershipType, setNewOwnershipType] = useState('');
 
   // Track replied leads to avoid blocky window.alerts
   const [repliedInquiries, setRepliedInquiries] = useState<Record<string, boolean>>({});
@@ -283,6 +359,12 @@ export default function RealtorDashboard({
     setNewHighlightStr('');
     setNewMlsNumber('');
     setNewInternationalRegId('');
+    setNewCouncilTaxBand('');
+    setNewTenure('');
+    setNewEpcRating('');
+    setNewReraPermitNumber('');
+    setNewGoldenVisaEligible(false);
+    setNewOwnershipType('');
     setLandmarkSchool('');
     setLandmarkMetro('');
     setLandmarkHospital('');
@@ -359,6 +441,12 @@ export default function RealtorDashboard({
     setNewHighlightStr(p.highlights ? p.highlights.join(', ') : '');
     setNewMlsNumber(p.mlsNumber || '');
     setNewInternationalRegId(p.internationalRegId || '');
+    setNewCouncilTaxBand(p.councilTaxBand || '');
+    setNewTenure(p.tenure || '');
+    setNewEpcRating(p.epcRating || '');
+    setNewReraPermitNumber(p.reraPermitNumber || '');
+    setNewGoldenVisaEligible(p.goldenVisaEligible || false);
+    setNewOwnershipType(p.ownershipType || '');
     setLandmarkSchool(p.landmarks?.school || '');
     setLandmarkMetro(p.landmarks?.metro || '');
     setLandmarkHospital(p.landmarks?.hospital || '');
@@ -490,7 +578,13 @@ export default function RealtorDashboard({
             nearbyShoppingCentres: newNearbyShoppingCentres || undefined,
             nearbyParks: newNearbyParks || undefined,
             mlsNumber: newMlsNumber || undefined,
-            internationalRegId: newInternationalRegId || undefined
+            internationalRegId: newInternationalRegId || undefined,
+            councilTaxBand: newCouncilTaxBand || undefined,
+            tenure: newTenure || undefined,
+            epcRating: newEpcRating || undefined,
+            reraPermitNumber: newReraPermitNumber || undefined,
+            goldenVisaEligible: newGoldenVisaEligible,
+            ownershipType: newOwnershipType || undefined
           };
           return editedProperty;
         }
@@ -581,7 +675,13 @@ export default function RealtorDashboard({
       nearbyShoppingCentres: newNearbyShoppingCentres || undefined,
       nearbyParks: newNearbyParks || undefined,
       mlsNumber: newMlsNumber || undefined,
-      internationalRegId: newInternationalRegId || undefined
+      internationalRegId: newInternationalRegId || undefined,
+      councilTaxBand: newCouncilTaxBand || undefined,
+      tenure: newTenure || undefined,
+      epcRating: newEpcRating || undefined,
+      reraPermitNumber: newReraPermitNumber || undefined,
+      goldenVisaEligible: newGoldenVisaEligible,
+      ownershipType: newOwnershipType || undefined
     };
 
     const updated = [addedProperty, ...properties];
@@ -2737,6 +2837,81 @@ export default function RealtorDashboard({
                       />
                     </div>
                   </div>
+
+                  {/* Live Realtor Map Preview */}
+                  <div className="mt-3 p-4 bg-white border border-neutral-200 rounded-xl space-y-3 font-sans">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-[9px] font-mono uppercase bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-sm">
+                          Live Location Fetch Check
+                        </span>
+                        <h5 className="text-xs font-semibold text-neutral-800 mt-1">Fetched Map Preview</h5>
+                      </div>
+                      <span className="text-[10px] text-teal-850 font-mono flex items-center gap-1 font-semibold">
+                        {isResolvingDashboardMap ? (
+                          <>
+                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse inline-block"></span>
+                            Resolving Link...
+                          </>
+                        ) : (
+                          <>
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
+                            Active Resolver
+                          </>
+                        )}
+                      </span>
+                    </div>
+
+                    {(() => {
+                      const query = resolvedDashboardMapQuery;
+                      const previewEmbedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(query)}&t=&z=14&ie=UTF8&iwloc=&output=embed`;
+                      const previewRedirectUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+
+                      if (!query) {
+                        return (
+                          <div className="py-8 text-center text-xs text-neutral-400 border border-dashed border-neutral-200 rounded-lg bg-neutral-50 font-mono">
+                            Please fill in the physical Street Address or paste a Google Maps Location URL above to preview the map.
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="space-y-2 relative">
+                          <div className="relative rounded-xl overflow-hidden border border-neutral-200 h-[180px] bg-neutral-50 shadow-3xs">
+                            {isResolvingDashboardMap && (
+                              <div className="absolute inset-0 bg-white/80 backdrop-blur-xs flex flex-col items-center justify-center z-10 space-y-1">
+                                <span className="w-4 h-4 rounded-full border-2 border-teal-800 border-t-transparent animate-spin inline-block"></span>
+                                <span className="text-[9px] font-mono text-neutral-500 uppercase tracking-wider animate-pulse">Fetching coords...</span>
+                              </div>
+                            )}
+                            <iframe
+                              title="Live Form Map Preview"
+                              src={previewEmbedUrl}
+                              width="100%"
+                              height="100%"
+                              style={{ border: 0 }}
+                              allowFullScreen={false}
+                              loading="lazy"
+                              referrerPolicy="no-referrer-when-downgrade"
+                            />
+                            <a
+                              href={previewRedirectUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="absolute bottom-2 right-2 flex items-center gap-1.5 px-2.5 py-1 bg-neutral-900/90 text-white rounded-lg font-mono text-[9px] uppercase tracking-wider transition-colors hover:bg-black font-bold shadow-sm"
+                            >
+                              <MapPin className="w-3 h-3 text-[#c8a27b]" />
+                              Verify Link
+                            </a>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px] text-neutral-500 font-mono">
+                            <MapPin className="w-3 h-3 text-neutral-400 shrink-0" />
+                            <span className="truncate">Resolved Location Query: <strong className="text-neutral-800">{query}</strong></span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
 
                 {/* SECTION 3: SPECIFICATIONS */}
@@ -3267,31 +3442,169 @@ export default function RealtorDashboard({
                     </div>
                   </div>
 
-                  {/* COLLAPSIBLE INTERNATIONAL IDENTIFIERS (MLS NUMBER, REGISTRATION) */}
+                  {/* COLLAPSIBLE INTERNATIONAL IDENTIFIERS (MLS NUMBER, REGISTRATION, REGIONAL SPECIFICS) */}
                   <div className="pt-4 border-t border-neutral-200/50 space-y-3">
-                    <span className="block text-[10px] font-bold text-neutral-600 uppercase tracking-wider">✦ Optional International Identifiers (Canada, USA, UK, etc.)</span>
+                    <div className="flex items-center justify-between">
+                      <span className="block text-[10px] font-bold text-neutral-600 uppercase tracking-wider">✦ Regional & Global Compliance Data</span>
+                      <span className="px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-[8px] font-mono font-bold uppercase tracking-wider">
+                        Country Selected: {newCountry || 'Canada'}
+                      </span>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">MLS ID / MLS Number (e.g. Canada MLS)</span>
+                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">MLS ID / MLS Number (Canada & USA)</span>
                         <input 
                           type="text" 
-                          placeholder="e.g. R2891045" 
+                          placeholder="e.g. R2891045 or MLS-482910" 
                           value={newMlsNumber} 
                           onChange={e => setNewMlsNumber(e.target.value)} 
-                          className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px]" 
+                          className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px] outline-none focus:border-black" 
                         />
                       </div>
                       <div>
-                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">International Registration / Permit Number</span>
+                        <span className="block text-[9px] font-mono text-neutral-400 mb-0.5">Global License / Permit ID</span>
                         <input 
                           type="text" 
-                          placeholder="e.g. PERMIT-582910-CAN" 
+                          placeholder="e.g. PERMIT-582910" 
                           value={newInternationalRegId} 
                           onChange={e => setNewInternationalRegId(e.target.value)} 
-                          className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px]" 
+                          className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px] outline-none focus:border-black" 
                         />
                       </div>
                     </div>
+
+                    {/* DYNAMIC REGIONAL INPUTS */}
+                    {newCountry === 'UK' && (
+                      <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/60 grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <span className="block text-[9px] font-mono text-indigo-700 font-bold mb-0.5 uppercase tracking-wide">UK Council Tax Band</span>
+                          <select 
+                            value={newCouncilTaxBand} 
+                            onChange={e => setNewCouncilTaxBand(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px] outline-none focus:border-indigo-500"
+                          >
+                            <option value="">Select Council Tax Band</option>
+                            <option value="Band A">Band A</option>
+                            <option value="Band B">Band B</option>
+                            <option value="Band C">Band C</option>
+                            <option value="Band D">Band D</option>
+                            <option value="Band E">Band E</option>
+                            <option value="Band F">Band F</option>
+                            <option value="Band G">Band G</option>
+                            <option value="Band H">Band H</option>
+                          </select>
+                        </div>
+                        <div>
+                          <span className="block text-[9px] font-mono text-indigo-700 font-bold mb-0.5 uppercase tracking-wide">UK EPC Energy Rating</span>
+                          <select 
+                            value={newEpcRating} 
+                            onChange={e => setNewEpcRating(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px] outline-none focus:border-indigo-500"
+                          >
+                            <option value="">Select EPC Rating</option>
+                            <option value="Grade A">Grade A (92+ CO2/Energy)</option>
+                            <option value="Grade B">Grade B (81-91)</option>
+                            <option value="Grade C">Grade C (69-80)</option>
+                            <option value="Grade D">Grade D (55-68)</option>
+                            <option value="Grade E">Grade E (39-54)</option>
+                            <option value="Grade F">Grade F (21-38)</option>
+                            <option value="Grade G">Grade G (1-20)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <span className="block text-[9px] font-mono text-indigo-700 font-bold mb-0.5 uppercase tracking-wide">UK Tenure Type</span>
+                          <select 
+                            value={newTenure} 
+                            onChange={e => setNewTenure(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px] outline-none focus:border-indigo-500"
+                          >
+                            <option value="">Select Tenure</option>
+                            <option value="Share of Freehold (999 Years)">Share of Freehold</option>
+                            <option value="Freehold">Freehold</option>
+                            <option value="Leasehold">Leasehold</option>
+                            <option value="Commonhold">Commonhold</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {newCountry === 'UAE' && (
+                      <div className="p-3 bg-amber-50/50 rounded-xl border border-amber-100/60 grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <span className="block text-[9px] font-mono text-amber-700 font-bold mb-0.5 uppercase tracking-wide">Dubai RERA Permit Number</span>
+                          <input 
+                            type="text" 
+                            placeholder="e.g. #7184910234" 
+                            value={newReraPermitNumber} 
+                            onChange={e => setNewReraPermitNumber(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px] outline-none focus:border-amber-500" 
+                          />
+                        </div>
+                        <div>
+                          <span className="block text-[9px] font-mono text-amber-700 font-bold mb-0.5 uppercase tracking-wide">Dubai Ownership Type</span>
+                          <select 
+                            value={newOwnershipType} 
+                            onChange={e => setNewOwnershipType(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px] outline-none focus:border-amber-500"
+                          >
+                            <option value="">Select Ownership</option>
+                            <option value="100% Freehold (Expats Eligible)">100% Freehold</option>
+                            <option value="Leasehold (99 Year Term)">Leasehold</option>
+                          </select>
+                        </div>
+                        <div className="flex flex-col justify-center">
+                          <label className="flex items-center gap-2 cursor-pointer pt-2">
+                            <input 
+                              type="checkbox" 
+                              checked={newGoldenVisaEligible} 
+                              onChange={e => setNewGoldenVisaEligible(e.target.checked)}
+                              className="rounded border-neutral-300 text-amber-600 focus:ring-amber-500 w-3.5 h-3.5" 
+                            />
+                            <span className="text-[10px] font-mono text-neutral-600">Golden Visa Eligible (AED 2M+)</span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+
+                    {(newCountry === 'Canada' || newCountry === 'USA' || newCountry === 'India') && (
+                      <div className="p-3 bg-neutral-100/70 rounded-xl border border-neutral-200/40 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <span className="block text-[9px] font-mono text-neutral-600 font-bold mb-0.5 uppercase tracking-wide">Ownership Structure</span>
+                          <input 
+                            type="text" 
+                            placeholder="e.g. Freehold, Condominium, Co-op" 
+                            value={newOwnershipType} 
+                            onChange={e => setNewOwnershipType(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px] outline-none focus:border-neutral-500" 
+                          />
+                        </div>
+                        {newCountry === 'Canada' ? (
+                          <div>
+                            <span className="block text-[9px] font-mono text-neutral-600 font-bold mb-0.5 uppercase tracking-wide">Foreign Buyer Ban Compliance</span>
+                            <select 
+                              value={newInternationalRegId ? 'Compliant' : 'Exempt'} 
+                              onChange={e => setNewInternationalRegId(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px] outline-none focus:border-neutral-500"
+                            >
+                              <option value="Exempt">Exempt / Permitted</option>
+                              <option value="Compliant">Vetted & Compliant</option>
+                            </select>
+                          </div>
+                        ) : (
+                          <div>
+                            <span className="block text-[9px] font-mono text-neutral-600 font-bold mb-0.5 uppercase tracking-wide">Local Zoning Classification</span>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. R1 Single-Family, Commercial" 
+                              value={newInternationalRegId} 
+                              onChange={e => setNewInternationalRegId(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px] outline-none focus:border-neutral-500" 
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 

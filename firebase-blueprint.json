@@ -1,0 +1,74 @@
+{
+  "collections": {
+    "users": {
+      "description": "Registered buyer and realtor users",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "name": { "type": "string", "required": true },
+        "email": { "type": "string", "required": true },
+        "role": { "type": "string", "required": true },
+        "savedPropertyIds": { "type": "array", "required": false },
+        "realtorProfile": { "type": "map", "required": false }
+      }
+    },
+    "properties": {
+      "description": "Real estate listings available on the marketplace",
+      "fields": {
+        "property_id": { "type": "number", "required": true },
+        "title": { "type": "string", "required": true },
+        "price": { "type": "number", "required": true },
+        "city": { "type": "string", "required": true },
+        "province": { "type": "string", "required": true },
+        "country": { "type": "string", "required": true }
+      }
+    },
+    "inquiries": {
+      "description": "Leads / inquiries from buyers to realtors",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "realtor_id": { "type": "string", "required": true },
+        "property_id": { "type": "number", "required": true },
+        "buyer_id": { "type": "string", "required": false },
+        "name": { "type": "string", "required": true },
+        "email": { "type": "string", "required": true },
+        "phone": { "type": "string", "required": true },
+        "message": { "type": "string", "required": true },
+        "budget": { "type": "string", "required": false },
+        "source": { "type": "string", "required": false },
+        "status": { "type": "string", "required": true },
+        "notes": { "type": "array", "required": false },
+        "created_at": { "type": "string", "required": true }
+      }
+    },
+    "bookings": {
+      "description": "Scheduled showtimes or virtual meetings",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "realtorId": { "type": "string", "required": true },
+        "leadId": { "type": "string", "required": true },
+        "name": { "type": "string", "required": true },
+        "email": { "type": "string", "required": true },
+        "phone": { "type": "string", "required": true },
+        "date": { "type": "string", "required": true },
+        "time": { "type": "string", "required": true },
+        "meetingType": { "type": "string", "required": true },
+        "propertyId": { "type": "number", "required": true },
+        "propertyTitle": { "type": "string", "required": true },
+        "status": { "type": "string", "required": true }
+      }
+    },
+    "tasks": {
+      "description": "Actionable task management lists for realtors",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "realtorId": { "type": "string", "required": true },
+        "leadId": { "type": "string", "required": false },
+        "leadName": { "type": "string", "required": false },
+        "title": { "type": "string", "required": true },
+        "dueDate": { "type": "string", "required": true },
+        "priority": { "type": "string", "required": true },
+        "status": { "type": "string", "required": true }
+      }
+    }
+  }
+}

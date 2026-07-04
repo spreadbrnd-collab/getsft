@@ -1,6 +1,5 @@
 import { Booking } from '../types';
-
-const BOOKINGS_KEY = 'getsft_bookings';
+import { db, collection, doc, getDocs, setDoc, deleteDoc } from '../firebase';
 
 const INITIAL_BOOKINGS: Booking[] = [
   {
@@ -37,35 +36,56 @@ const INITIAL_BOOKINGS: Booking[] = [
 
 export const bookingService = {
   async getBookings(realtorId?: string): Promise<Booking[]> {
-    if (typeof window === 'undefined') return INITIAL_BOOKINGS;
-    const stored = localStorage.getItem(BOOKINGS_KEY);
-    let bookings: Booking[] = stored ? JSON.parse(stored) : INITIAL_BOOKINGS;
-    if (realtorId) {
-      bookings = bookings.filter(b => b.realtorId === realtorId);
+    try {
+      const snap = await getDocs(collection(db, 'bookings'));
+      if (snap.empty) {
+        console.log('Seeding initial bookings...');
+        for (const b of INITIAL_BOOKINGS) {
+          await setDoc(doc(db, 'bookings', b.id), b);
+        }
+        return realtorId ? INITIAL_BOOKINGS.filter(b => b.realtorId === realtorId) : INITIAL_BOOKINGS;
+      }
+      const bookings: Booking[] = [];
+      snap.forEach(docSnap => {
+        bookings.push(docSnap.data() as Booking);
+      });
+      if (realtorId) {
+        return bookings.filter(b => b.realtorId === realtorId);
+      }
+      return bookings;
+    } catch (err) {
+      console.error('Error fetching bookings from Firestore:', err);
+      return realtorId ? INITIAL_BOOKINGS.filter(b => b.realtorId === realtorId) : INITIAL_BOOKINGS;
     }
-    return bookings;
   },
-  async saveBookings(bookings: Booking[]): Promise<void> {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(BOOKINGS_KEY, JSON.stringify(bookings));
-    }
-  },
+
   async addBooking(booking: Booking): Promise<Booking> {
-    const bookings = await this.getBookings();
-    bookings.unshift(booking);
-    await this.saveBookings(bookings);
-    return booking;
+    try {
+      await setDoc(doc(db, 'bookings', booking.id), booking);
+      return booking;
+    } catch (err) {
+      console.error('Error adding booking to Firestore:', err);
+      throw err;
+    }
   },
+
   async updateBooking(booking: Booking): Promise<Booking> {
-    const bookings = await this.getBookings();
-    const updated = bookings.map(b => b.id === booking.id ? booking : b);
-    await this.saveBookings(updated);
-    return booking;
+    try {
+      await setDoc(doc(db, 'bookings', booking.id), booking);
+      return booking;
+    } catch (err) {
+      console.error('Error updating booking in Firestore:', err);
+      throw err;
+    }
   },
+
   async deleteBooking(id: string): Promise<boolean> {
-    const bookings = await this.getBookings();
-    const filtered = bookings.filter(b => b.id !== id);
-    await this.saveBookings(filtered);
-    return bookings.length > filtered.length;
+    try {
+      await deleteDoc(doc(db, 'bookings', id));
+      return true;
+    } catch (err) {
+      console.error('Error deleting booking from Firestore:', err);
+      return false;
+    }
   }
 };

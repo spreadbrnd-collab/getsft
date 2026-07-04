@@ -1,6 +1,5 @@
 import { Task } from '../types';
-
-const TASKS_KEY = 'getsft_tasks';
+import { db, collection, doc, getDocs, setDoc, deleteDoc } from '../firebase';
 
 const INITIAL_TASKS: Task[] = [
   {
@@ -37,35 +36,56 @@ const INITIAL_TASKS: Task[] = [
 
 export const taskService = {
   async getTasks(realtorId?: string): Promise<Task[]> {
-    if (typeof window === 'undefined') return INITIAL_TASKS;
-    const stored = localStorage.getItem(TASKS_KEY);
-    let tasks: Task[] = stored ? JSON.parse(stored) : INITIAL_TASKS;
-    if (realtorId) {
-      tasks = tasks.filter(t => t.realtorId === realtorId);
+    try {
+      const snap = await getDocs(collection(db, 'tasks'));
+      if (snap.empty) {
+        console.log('Seeding initial tasks...');
+        for (const t of INITIAL_TASKS) {
+          await setDoc(doc(db, 'tasks', t.id), t);
+        }
+        return realtorId ? INITIAL_TASKS.filter(t => t.realtorId === realtorId) : INITIAL_TASKS;
+      }
+      const tasks: Task[] = [];
+      snap.forEach(docSnap => {
+        tasks.push(docSnap.data() as Task);
+      });
+      if (realtorId) {
+        return tasks.filter(t => t.realtorId === realtorId);
+      }
+      return tasks;
+    } catch (err) {
+      console.error('Error fetching tasks from Firestore:', err);
+      return realtorId ? INITIAL_TASKS.filter(t => t.realtorId === realtorId) : INITIAL_TASKS;
     }
-    return tasks;
   },
-  async saveTasks(tasks: Task[]): Promise<void> {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
-    }
-  },
+
   async addTask(task: Task): Promise<Task> {
-    const tasks = await this.getTasks();
-    tasks.unshift(task);
-    await this.saveTasks(tasks);
-    return task;
+    try {
+      await setDoc(doc(db, 'tasks', task.id), task);
+      return task;
+    } catch (err) {
+      console.error('Error adding task in Firestore:', err);
+      throw err;
+    }
   },
+
   async updateTask(task: Task): Promise<Task> {
-    const tasks = await this.getTasks();
-    const updated = tasks.map(t => t.id === task.id ? task : t);
-    await this.saveTasks(updated);
-    return task;
+    try {
+      await setDoc(doc(db, 'tasks', task.id), task);
+      return task;
+    } catch (err) {
+      console.error('Error updating task in Firestore:', err);
+      throw err;
+    }
   },
+
   async deleteTask(id: string): Promise<boolean> {
-    const tasks = await this.getTasks();
-    const filtered = tasks.filter(t => t.id !== id);
-    await this.saveTasks(filtered);
-    return tasks.length > filtered.length;
+    try {
+      await deleteDoc(doc(db, 'tasks', id));
+      return true;
+    } catch (err) {
+      console.error('Error deleting task from Firestore:', err);
+      return false;
+    }
   }
 };
