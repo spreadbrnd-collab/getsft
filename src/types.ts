@@ -119,6 +119,8 @@ export interface Realtor {
   agencyName?: string;
   licenseNumber?: string;
   email?: string;
+  testimonialText?: string;
+  testimonialAuthor?: string;
 }
 
 export interface Inquiry {

@@ -9,6 +9,21 @@ import { BrowserRouter, Routes, Route, useNavigate, useParams, useLocation, Navi
 
 import { Realtor, Property, Inquiry, User } from './types';
 import { loadState, saveState } from './mockData';
+import { 
+  db, 
+  auth, 
+  onAuthStateChanged, 
+  signOut, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  collection, 
+  onSnapshot, 
+  cleanForFirestore, 
+  syncMockDataToFirestore 
+} from './firebase';
+import { propertyService } from './services/propertyService';
+import { leadService } from './services/leadService';
 import AuthModal from './components/AuthModal';
 import LeadInquiryModal from './components/LeadInquiryModal';
 import RealtorDashboard from './components/RealtorDashboard';
@@ -46,102 +61,129 @@ function AppContent() {
   const [appState, setAppState] = useState(() => loadState());
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
 
-  // Synchronize Firestore and Firebase Auth on Mount
+  // Synchronize Firestore and Firebase Auth on Mount (with Real-time Snapshots)
   useEffect(() => {
     let isMounted = true;
+    let unsubscribes: (() => void)[] = [];
 
-    const initializeFirebaseAndSync = async () => {
-      try {
-        const { syncMockDataToFirestore, onAuthStateChanged, auth, doc, getDoc, setDoc, db, collection, getDocs } = await import('./firebase');
-        
-        // 1. First ensure Firestore has legacy mock data cleaned up
-        await syncMockDataToFirestore();
+    // 1. Clean legacy dummy data in background
+    syncMockDataToFirestore().catch(err => console.error('Background cleanup error:', err));
 
-        // 2. Fetch properties
-        const { propertyService } = await import('./services/propertyService');
-        const dbProperties = await propertyService.getProperties();
+    // 2. Real-time listen to Properties collection
+    const unsubProperties = onSnapshot(collection(db, 'properties'), (snapshot) => {
+      if (!isMounted) return;
+      const properties: Property[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() as Property;
+        if (data && data.owner_id !== 'david' && data.owner_id !== 'sarah' && data.owner_id !== 'julian') {
+          properties.push(data);
+        }
+      });
+      const sorted = properties.sort((a, b) => b.property_id - a.property_id);
+      setAppState(prev => ({
+        ...prev,
+        properties: sorted
+      }));
+    }, (err) => {
+      console.error('Properties listener error:', err);
+    });
+    unsubscribes.push(unsubProperties);
 
-        // 3. Fetch inquiries
-        const { leadService } = await import('./services/leadService');
-        const dbInquiries = await leadService.getLeads();
+    // 3. Real-time listen to Inquiries collection
+    const unsubInquiries = onSnapshot(collection(db, 'inquiries'), (snapshot) => {
+      if (!isMounted) return;
+      const inquiries: Inquiry[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() as Inquiry;
+        if (data) {
+          inquiries.push(data);
+        }
+      });
+      setAppState(prev => ({
+        ...prev,
+        inquiries
+      }));
+    }, (err) => {
+      console.error('Inquiries listener error:', err);
+    });
+    unsubscribes.push(unsubInquiries);
 
-        // 3b. Fetch realtors and users dynamically from Firestore
-        const usersSnap = await getDocs(collection(db, 'users'));
-        const dbRealtors: Realtor[] = [];
-        const dbUsers: User[] = [];
-        usersSnap.forEach((uSnap) => {
-          const uData = uSnap.data() as User;
-          if (uData) {
-            if (uData.id !== 'david' && uData.id !== 'sarah' && uData.id !== 'julian') {
-              dbUsers.push(uData);
-              if (uData.role === 'realtor' && uData.realtorProfile) {
-                dbRealtors.push(uData.realtorProfile);
-              }
+    // 4. Real-time listen to Users & Realtors
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      if (!isMounted) return;
+      const dbRealtors: Realtor[] = [];
+      const dbUsers: User[] = [];
+      snapshot.forEach((uSnap) => {
+        const uData = uSnap.data() as User;
+        if (uData) {
+          if (uData.id !== 'david' && uData.id !== 'sarah' && uData.id !== 'julian') {
+            dbUsers.push(uData);
+            if (uData.role === 'realtor' && uData.realtorProfile) {
+              dbRealtors.push(uData.realtorProfile);
             }
           }
-        });
-
-        if (isMounted) {
-          setAppState(prev => ({
-            ...prev,
-            realtors: dbRealtors,
-            users: dbUsers,
-            properties: dbProperties,
-            inquiries: dbInquiries
-          }));
         }
+      });
+      setAppState(prev => {
+        const updatedCurrentUser = prev.currentUser 
+          ? (dbUsers.find(u => u.id === prev.currentUser?.id) || prev.currentUser)
+          : null;
+        return {
+          ...prev,
+          users: dbUsers,
+          realtors: dbRealtors,
+          currentUser: updatedCurrentUser
+        };
+      });
+    }, (err) => {
+      console.error('Users listener error:', err);
+    });
+    unsubscribes.push(unsubUsers);
 
-        // 4. Listen to Auth state
-        const unsubscribeAuth = onAuthStateChanged(auth, async (fUser) => {
-          if (!isMounted) return;
+    // 5. Listen to Auth state
+    const unsubAuth = onAuthStateChanged(auth, async (fUser) => {
+      if (!isMounted) return;
 
-          if (fUser) {
-            try {
-              const userRef = doc(db, 'users', fUser.uid);
-              const userSnap = await getDoc(userRef);
-              if (userSnap.exists()) {
-                const userData = userSnap.data() as User;
-                setAppState(prev => ({
-                  ...prev,
-                  currentUser: userData
-                }));
-              } else {
-                // Fallback document creation if user document is missing (prevents login hang)
-                const fallbackUser: User = {
-                  id: fUser.uid,
-                  name: fUser.displayName || fUser.email?.split('@')[0] || 'Google User',
-                  email: fUser.email || '',
-                  role: 'buyer',
-                  savedPropertyIds: []
-                };
-                await setDoc(userRef, fallbackUser);
-                setAppState(prev => ({
-                  ...prev,
-                  currentUser: fallbackUser
-                }));
-              }
-            } catch (err) {
-              console.error('Error fetching authorized user profile:', err);
-            }
-          } else {
+      if (fUser) {
+        try {
+          const userRef = doc(db, 'users', fUser.uid);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const userData = userSnap.data() as User;
             setAppState(prev => ({
               ...prev,
-              currentUser: null
+              currentUser: userData
+            }));
+          } else {
+            // Fallback document creation if user document is missing (prevents login hang)
+            const fallbackUser: User = {
+              id: fUser.uid,
+              name: fUser.displayName || fUser.email?.split('@')[0] || 'Google User',
+              email: fUser.email || '',
+              role: 'buyer',
+              savedPropertyIds: []
+            };
+            await setDoc(userRef, fallbackUser);
+            setAppState(prev => ({
+              ...prev,
+              currentUser: fallbackUser
             }));
           }
-        });
-
-        return unsubscribeAuth;
-      } catch (err) {
-        console.error('Failed to initialize Firebase Auth and Firestore data flow:', err);
+        } catch (err) {
+          console.error('Error fetching authorized user profile:', err);
+        }
+      } else {
+        setAppState(prev => ({
+          ...prev,
+          currentUser: null
+        }));
       }
-    };
-
-    let unsubscribePromise = initializeFirebaseAndSync();
+    });
+    unsubscribes.push(unsubAuth);
 
     return () => {
       isMounted = false;
-      unsubscribePromise.then(unsub => unsub && unsub());
+      unsubscribes.forEach((unsub) => unsub());
     };
   }, []);
 
@@ -371,6 +413,8 @@ function AppContent() {
 
   // Realtor specific updates in state from dashboard
   const handleUpdateProperties = async (nextProperties: Property[]) => {
+    const prevProperties = appState.properties;
+
     setAppState((prev) => ({
       ...prev,
       properties: nextProperties
@@ -378,20 +422,49 @@ function AppContent() {
 
     try {
       const { propertyService } = await import('./services/propertyService');
-      const existingInDb = await propertyService.getProperties();
       
-      const nextIds = new Set(nextProperties.map(p => p.property_id));
+      const prevMap = new Map(prevProperties.map(p => [p.property_id, p]));
+      const nextMap = new Map(nextProperties.map(p => [p.property_id, p]));
       
-      // Delete removed properties
-      for (const p of existingInDb) {
-        if (!nextIds.has(p.property_id)) {
-          await propertyService.deleteProperty(p.property_id);
+      // 1. Find deleted properties (in prev but not in next)
+      const deletedIds: number[] = [];
+      for (const p of prevProperties) {
+        if (!nextMap.has(p.property_id)) {
+          deletedIds.push(p.property_id);
+        }
+      }
+      
+      // 2. Find added or updated properties (in next, but either not in prev or values changed)
+      const changedOrAdded: Property[] = [];
+      for (const p of nextProperties) {
+        const prevProp = prevMap.get(p.property_id);
+        if (!prevProp) {
+          changedOrAdded.push(p);
+        } else {
+          // Compare strings for actual changes
+          if (JSON.stringify(prevProp) !== JSON.stringify(p)) {
+            changedOrAdded.push(p);
+          }
         }
       }
 
-      // Update / Add current ones
-      for (const p of nextProperties) {
-        await propertyService.updateProperty(p);
+      // Execute operations in parallel to optimize throughput
+      const promises: Promise<any>[] = [];
+      
+      if (deletedIds.length > 0) {
+        deletedIds.forEach(id => {
+          promises.push(propertyService.deleteProperty(id));
+        });
+      }
+
+      if (changedOrAdded.length > 0) {
+        changedOrAdded.forEach(p => {
+          promises.push(propertyService.updateProperty(p));
+        });
+      }
+
+      if (promises.length > 0) {
+        await Promise.all(promises);
       }
     } catch (err) {
       console.error('Error syncing properties updates to Firestore:', err);
@@ -446,12 +519,13 @@ function AppContent() {
 
     if (appState.currentUser) {
       try {
-        const { db, doc, setDoc } = await import('./firebase');
+        const { db, doc, setDoc, cleanForFirestore } = await import('./firebase');
         const userRef = doc(db, 'users', appState.currentUser.id);
-        await setDoc(userRef, {
+        const cleaned = cleanForFirestore({
           ...appState.currentUser,
           realtorProfile: nextProfile
         });
+        await setDoc(userRef, cleaned);
       } catch (err) {
         console.error('Error syncing updated realtor profile to Firestore:', err);
       }

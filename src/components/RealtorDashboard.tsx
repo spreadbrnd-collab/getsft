@@ -291,16 +291,18 @@ export default function RealtorDashboard({
     } catch (e) {
       console.warn("Failed to parse buyer saves", e);
     }
-
-    // Default simulation fallback if no buyers exist in storage yet to ensure it doesn't look empty
-    if (totalSaves === 0) {
-      totalSaves = myProperties.reduce((acc, p) => acc + (p.property_id % 3 + 1) * 2, 8);
-    }
     
-    // Load actual tracking views counted per realtor in real-time
-    const localViews = Number(localStorage.getItem(`realtor_views_${currentUser.id}`) || '0');
-    // If localViews has not been initialized or is empty, we start with a realistic 12 views base count
-    const viewsThisMonth = localViews > 0 ? localViews : 12;
+    // Load actual tracking views counted per realtor in real-time (from getsft_page_views)
+    let viewsThisMonth = 0;
+    try {
+      const storedViews = localStorage.getItem('getsft_page_views');
+      if (storedViews) {
+        const viewsObj = JSON.parse(storedViews);
+        viewsThisMonth = Number(viewsObj[currentUser.id] || 0);
+      }
+    } catch (e) {
+      console.warn("Failed to parse page views in dashboard metrics", e);
+    }
 
     return {
       totalListings,
@@ -310,7 +312,7 @@ export default function RealtorDashboard({
       totalSaves,
       viewsThisMonth
     };
-  }, [myProperties, myInquiries]);
+  }, [myProperties, myInquiries, currentUser.id]);
 
   // Settings forms fields
   const [settingsName, setSettingsName] = useState(profile.name);
@@ -325,7 +327,52 @@ export default function RealtorDashboard({
   const [settingsExp, setSettingsExp] = useState(profile.experience.toString());
   const [settingsProfileImage, setSettingsProfileImage] = useState(profile.profileImage);
   const [settingsCoverImage, setSettingsCoverImage] = useState(profile.coverImage);
+  const [settingsTestimonialText, setSettingsTestimonialText] = useState(profile.testimonialText || '');
+  const [settingsTestimonialAuthor, setSettingsTestimonialAuthor] = useState(profile.testimonialAuthor || '');
   const [settingsSaveSuccess, setSettingsSaveSuccess] = useState(false);
+
+  const trafficChartPath = useMemo(() => {
+    const currentVal = metrics.viewsThisMonth;
+    const maxVal = Math.max(currentVal, 5);
+    const curY = 180 - (currentVal / maxVal) * 140;
+    return {
+      path: `M 20,180 L 150,180 L 300,180 L 480,${curY}`,
+      curY
+    };
+  }, [metrics.viewsThisMonth]);
+
+  const leadChartBars = useMemo(() => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyCount = Array(12).fill(0);
+    
+    myInquiries.forEach(inq => {
+      try {
+        const d = new Date(inq.date);
+        if (!isNaN(d.getTime())) {
+          monthlyCount[d.getMonth()]++;
+        }
+      } catch (e) {}
+    });
+    
+    const now = new Date();
+    const bars = [];
+    for (let i = 4; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mIdx = d.getMonth();
+      const val = monthlyCount[mIdx];
+      bars.push({
+        monthName: months[mIdx],
+        val: val,
+      });
+    }
+    
+    const maxVal = Math.max(...bars.map(b => b.val), 1);
+    return bars.map(b => ({
+      month: b.monthName,
+      val: b.val.toString(),
+      h: `${Math.max(10, (b.val / maxVal) * 80)}%`
+    }));
+  }, [myInquiries]);
 
   const [editingPropertyId, setEditingPropertyId] = useState<number | null>(null);
 
@@ -731,7 +778,9 @@ export default function RealtorDashboard({
       specializations: settingsSpecs.split(',').map(s => s.trim()).filter(Boolean),
       customDomain: settingsDomain,
       profileImage: settingsProfileImage,
-      coverImage: settingsCoverImage
+      coverImage: settingsCoverImage,
+      testimonialText: settingsTestimonialText || undefined,
+      testimonialAuthor: settingsTestimonialAuthor || undefined
     };
 
     setProfile(updatedProfile);
@@ -2020,7 +2069,7 @@ export default function RealtorDashboard({
                           <span className="font-mono text-[10px] tracking-wider text-gray-400 uppercase">Monthly Traffic Trends</span>
                           <h4 className="text-lg font-display font-medium text-neutral-900 mt-1">Unique Client views</h4>
                         </div>
-                        <span className="text-xs font-mono text-emerald-600 font-bold">+12% vs last cycle</span>
+                        <span className="text-xs font-mono text-emerald-600 font-bold">Real-time counts</span>
                       </div>
 
                       {/* Pure SVG Line Chart (completely robust, zero library bugs) */}
@@ -2031,22 +2080,20 @@ export default function RealtorDashboard({
                           <line x1="0" y1="100" x2="500" y2="100" stroke="#f1f1f1" strokeWidth="1" />
                           <line x1="0" y1="150" x2="500" y2="150" stroke="#f1f1f1" strokeWidth="1" />
                           
-                          {/* Chart Path */}
+                          {/* Dynamic Reactive Chart Path */}
                           <path
-                            d="M 20,180 Q 100,120 180,150 T 340,80 T 480,40"
+                            d={trafficChartPath.path}
                             fill="none"
                             stroke="#111111"
                             strokeWidth="3.5"
                           />
-                          <circle cx="180" cy="150" r="4" fill="#000000" />
-                          <circle cx="340" cy="80" r="4" fill="#000000" />
-                          <circle cx="480" cy="40" r="5" fill="#000000" />
+                          <circle cx="480" cy={trafficChartPath.curY} r="5" fill="#000000" />
                           
                           {/* Labels */}
-                          <text x="20" y="195" fill="#999" fontSize="9" fontFamily="JetBrains Mono">APR</text>
-                          <text x="180" y="195" fill="#999" fontSize="9" fontFamily="JetBrains Mono">MAY</text>
-                          <text x="340" y="195" fill="#999" fontSize="9" fontFamily="JetBrains Mono">JUN</text>
-                          <text x="450" y="195" fill="#999" fontSize="9" fontFamily="JetBrains Mono">CURRENT</text>
+                          <text x="20" y="195" fill="#999" fontSize="9" fontFamily="JetBrains Mono">PREV 3</text>
+                          <text x="150" y="195" fill="#999" fontSize="9" fontFamily="JetBrains Mono">PREV 2</text>
+                          <text x="300" y="195" fill="#999" fontSize="9" fontFamily="JetBrains Mono">PREV 1</text>
+                          <text x="440" y="195" fill="#000" fontSize="9" className="font-bold" fontFamily="JetBrains Mono">CURRENT ({metrics.viewsThisMonth})</text>
                         </svg>
                       </div>
                     </div>
@@ -2061,19 +2108,13 @@ export default function RealtorDashboard({
                         <span className="text-xs font-mono text-neutral-800 font-bold">{metrics.totalLeads} total records</span>
                       </div>
 
-                      {/* Beautiful minimal bar layout */}
+                      {/* Dynamic Lead Bar layout */}
                       <div className="h-64 flex items-end justify-between px-6 pt-10">
-                        {[
-                          { month: 'January', val: '24', h: '40%' },
-                          { month: 'February', val: '31', h: '55%' },
-                          { month: 'March', val: '19', h: '35%' },
-                          { month: 'April', val: '45', h: '75%' },
-                          { month: 'Current', val: Math.max(10, metrics.totalLeads * 14).toString(), h: '90%' }
-                        ].map((bar) => (
+                        {leadChartBars.map((bar) => (
                           <div key={bar.month} className="flex flex-col items-center gap-3 w-12">
                             <span className="font-mono text-[10px] font-bold text-neutral-900">{bar.val}</span>
                             <div className="w-6 bg-black rounded-t-lg transition-all duration-500" style={{ height: bar.h }}></div>
-                            <span className="font-mono text-[8px] text-gray-400 uppercase tracking-wider">{bar.month.substring(0,3)}</span>
+                            <span className="font-mono text-[8px] text-gray-400 uppercase tracking-wider">{bar.month}</span>
                           </div>
                         ))}
                       </div>
@@ -2103,11 +2144,36 @@ export default function RealtorDashboard({
                         </thead>
                         <tbody className="divide-y divide-neutral-100">
                           {myProperties.map((p, idx) => {
-                            // Calculate actual counts or seed premium realistic ones
-                            const seedViews = 150 + (p.property_id % 30) * 12 + (idx * 45);
-                            const seedSaves = 12 + (p.property_id % 10) * 4 + (idx * 3);
-                            const inqsCount = myInquiries.filter(i => i.property_id === p.property_id).length || idx + 2;
-                            const convRate = ((inqsCount / seedViews) * 100).toFixed(1);
+                            // Extract actual views per-property from local storage
+                            let actualViews = 0;
+                            try {
+                              const storedViews = localStorage.getItem('getsft_page_views');
+                              if (storedViews) {
+                                const viewsObj = JSON.parse(storedViews);
+                                actualViews = Number(viewsObj[`prop_${p.property_id}`] || 0);
+                              }
+                            } catch (e) {}
+
+                            // Extract actual saves per-property from local storage
+                            let actualSaves = 0;
+                            try {
+                              const existingRaw = localStorage.getItem('getsft_mvp_state');
+                              if (existingRaw) {
+                                const stateObj = JSON.parse(existingRaw);
+                                if (stateObj && Array.isArray(stateObj.users)) {
+                                  stateObj.users.forEach((u: any) => {
+                                    if (u.role === 'buyer' && Array.isArray(u.savedPropertyIds)) {
+                                      if (u.savedPropertyIds.includes(p.property_id)) {
+                                        actualSaves++;
+                                      }
+                                    }
+                                  });
+                                }
+                              }
+                            } catch (e) {}
+
+                            const inqsCount = myInquiries.filter(i => i.property_id === p.property_id).length;
+                            const convRate = actualViews > 0 ? ((inqsCount / actualViews) * 100).toFixed(1) : '0.0';
 
                             return (
                               <tr key={p.property_id} className="hover:bg-neutral-50/50 transition-colors">
@@ -2118,10 +2184,10 @@ export default function RealtorDashboard({
                                   </div>
                                 </td>
                                 <td className="py-4 px-4 text-center font-mono font-bold text-neutral-800">
-                                  {seedViews.toLocaleString()}
+                                  {actualViews.toLocaleString()}
                                 </td>
                                 <td className="py-4 px-4 text-center font-mono text-indigo-600 font-bold">
-                                  {seedSaves}
+                                  {actualSaves}
                                 </td>
                                 <td className="py-4 px-4 text-center font-mono text-teal-800 font-bold">
                                   {inqsCount}
@@ -2271,6 +2337,38 @@ export default function RealtorDashboard({
                           className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-sans outline-none focus:border-black focus:bg-white resize-none"
                           id="settings-biography-input"
                         />
+                      </div>
+
+                      {/* Client Testimonial customization */}
+                      <div className="border border-neutral-200/60 rounded-2xl p-6 bg-neutral-50/50 space-y-4">
+                        <div>
+                          <h4 className="text-sm font-sans font-bold text-neutral-800">Public Client Testimonial (Review)</h4>
+                          <p className="text-[11px] text-neutral-500 mt-0.5">Customize the client testimonial or review shown on your public profile page. Leave empty to hide the testimonials section.</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4">
+                          <div>
+                            <label className="block text-xs font-mono tracking-wider uppercase text-neutral-400 mb-1.5">Testimonial Quote / Review Text</label>
+                            <textarea
+                              rows={3}
+                              value={settingsTestimonialText}
+                              onChange={(e) => setSettingsTestimonialText(e.target.value)}
+                              placeholder="e.g. Pure professionalism. Made the transaction fast and friction-free!"
+                              className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-xl text-xs font-sans outline-none focus:border-black focus:bg-white resize-none"
+                              id="settings-testimonial-text-input"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-mono tracking-wider uppercase text-neutral-400 mb-1.5">Testimonial Author / Signature</label>
+                            <input
+                              type="text"
+                              value={settingsTestimonialAuthor}
+                              onChange={(e) => setSettingsTestimonialAuthor(e.target.value)}
+                              placeholder="e.g. John & Sarah, Buyer Clients"
+                              className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-xl text-xs font-sans outline-none focus:border-black focus:bg-white"
+                              id="settings-testimonial-author-input"
+                            />
+                          </div>
+                        </div>
                       </div>
 
                       {/* Interactive Profile Picture & Cover Photo (DP) uploading */}

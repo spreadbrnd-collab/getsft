@@ -1,8 +1,8 @@
 import { Property } from '../types';
-import { db, collection, doc, getDocs, getDoc, setDoc, deleteDoc } from '../firebase';
+import { db, collection, doc, getDocs, getDoc, setDoc, deleteDoc, cleanForFirestore } from '../firebase';
 
 export const propertyService = {
-  async getProperties(): Promise<Property[]> {
+  async getProperties(): Promise<Property[] | null> {
     try {
       const snap = await getDocs(collection(db, 'properties'));
       const properties: Property[] = [];
@@ -15,7 +15,7 @@ export const propertyService = {
       return properties.sort((a, b) => b.property_id - a.property_id);
     } catch (err) {
       console.error('Error in propertyService.getProperties:', err);
-      return [];
+      return null;
     }
   },
 
@@ -29,7 +29,7 @@ export const propertyService = {
         }
       }
       const all = await this.getProperties();
-      return all.find(p => p.property_id === id);
+      return all ? all.find(p => p.property_id === id) : undefined;
     } catch (err) {
       console.error('Error in propertyService.getPropertyById:', err);
       return undefined;
@@ -38,7 +38,8 @@ export const propertyService = {
 
   async addProperty(property: Property): Promise<Property> {
     try {
-      await setDoc(doc(db, 'properties', property.property_id.toString()), property);
+      const cleaned = cleanForFirestore(property);
+      await setDoc(doc(db, 'properties', property.property_id.toString()), cleaned);
       return property;
     } catch (err) {
       console.error('Error adding property to Firestore:', err);
@@ -48,7 +49,8 @@ export const propertyService = {
 
   async updateProperty(property: Property): Promise<Property> {
     try {
-      await setDoc(doc(db, 'properties', property.property_id.toString()), property);
+      const cleaned = cleanForFirestore(property);
+      await setDoc(doc(db, 'properties', property.property_id.toString()), cleaned);
       return property;
     } catch (err) {
       console.error('Error updating property in Firestore:', err);

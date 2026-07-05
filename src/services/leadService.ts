@@ -1,8 +1,8 @@
 import { Inquiry } from '../types';
-import { db, collection, doc, getDocs, getDoc, setDoc } from '../firebase';
+import { db, collection, doc, getDocs, getDoc, setDoc, cleanForFirestore } from '../firebase';
 
 export const leadService = {
-  async getLeads(realtorId?: string): Promise<Inquiry[]> {
+  async getLeads(realtorId?: string): Promise<Inquiry[] | null> {
     try {
       const snap = await getDocs(collection(db, 'inquiries'));
       const inquiries: Inquiry[] = [];
@@ -25,13 +25,14 @@ export const leadService = {
       return enriched;
     } catch (err) {
       console.error('Error fetching leads from Firestore:', err);
-      return [];
+      return null;
     }
   },
 
   async updateLead(lead: Inquiry): Promise<Inquiry> {
     try {
-      await setDoc(doc(db, 'inquiries', lead.id), lead);
+      const cleaned = cleanForFirestore(lead);
+      await setDoc(doc(db, 'inquiries', lead.id), cleaned);
       return lead;
     } catch (err) {
       console.error('Error updating lead in Firestore:', err);
@@ -48,7 +49,8 @@ export const leadService = {
         status: lead.status || 'New',
         notes: lead.notes || [lead.message || 'Manual lead entry created.']
       };
-      await setDoc(doc(db, 'inquiries', leadId), newLead);
+      const cleaned = cleanForFirestore(newLead);
+      await setDoc(doc(db, 'inquiries', leadId), cleaned);
       return newLead;
     } catch (err) {
       console.error('Error creating lead in Firestore:', err);
@@ -65,7 +67,8 @@ export const leadService = {
         const notes = lead.notes || [];
         notes.push(note);
         const updated = { ...lead, notes };
-        await setDoc(docRef, updated);
+        const cleaned = cleanForFirestore(updated);
+        await setDoc(docRef, cleaned);
         return updated;
       }
       return undefined;

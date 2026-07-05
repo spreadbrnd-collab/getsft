@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { 
   Phone, MessageSquare, Calendar, MapPin, Search, Star, 
@@ -233,6 +233,21 @@ export default function RealtorProfilePage({
   const [contactPhone, setContactPhone] = useState('');
   const [contactMessage, setContactMessage] = useState(`Hello ${realtor.name}, I would like to schedule a private advisory consultation session with you.`);
   const [consultationBooked, setConsultationBooked] = useState(false);
+
+  // Real-time page views tracking
+  useEffect(() => {
+    if (realtor?.id) {
+      try {
+        const storedViews = localStorage.getItem('getsft_page_views') || '{}';
+        const viewsObj = JSON.parse(storedViews);
+        // Track per-realtor page views (no starting baseline, starts at 0 and increments)
+        viewsObj[realtor.id] = (viewsObj[realtor.id] || 0) + 1;
+        localStorage.setItem('getsft_page_views', JSON.stringify(viewsObj));
+      } catch (e) {
+        console.error("Error setting page view count:", e);
+      }
+    }
+  }, [realtor?.id]);
 
   // Filter listings owned by this realtor and visibility on My Website == true
   const realtorProperties = useMemo(() => {
@@ -906,15 +921,19 @@ export default function RealtorProfilePage({
             </section>
 
             {/* Testimonials */}
-            <section className="bg-[#ffc6d9] border-4 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] space-y-3 font-bold">
-              <span className="bg-[#34d399] border-2 border-black text-xs font-black tracking-widest px-2.5 py-1 inline-block">
-                🌟 STELLAR REVIEWS!
-              </span>
-              <p className="text-xs italic leading-relaxed text-neutral-800">
-                "Pure high-contrast professionalism. Made the paperwork super fast and we had absolute zero friction. 10/10 recommend!"
-              </p>
-              <div className="text-[10px] text-right text-stone-600 block">— The Pop Brokerage Watch Group</div>
-            </section>
+            {realtor.testimonialText && (
+              <section className="bg-[#ffc6d9] border-4 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] space-y-3 font-bold">
+                <span className="bg-[#34d399] border-2 border-black text-xs font-black tracking-widest px-2.5 py-1 inline-block">
+                  🌟 CLIENT TESTIMONIAL
+                </span>
+                <p className="text-xs italic leading-relaxed text-neutral-800">
+                  "{realtor.testimonialText}"
+                </p>
+                {realtor.testimonialAuthor && (
+                  <div className="text-[10px] text-right text-stone-600 block">— {realtor.testimonialAuthor}</div>
+                )}
+              </section>
+            )}
 
             {/* Quick booking Brutalist Block */}
             <section className="bg-white border-4 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] space-y-4">
